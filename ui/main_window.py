@@ -37,6 +37,20 @@ from ui.dialogs import CustomNameDialog, ErrorDialog, InstallRequiredDialog
 from ui.history_window import HistoryWindow
 from ui.settings_window import SettingsWindow
 
+import sys
+from PIL import Image
+
+def get_resource_path(relative_path: str) -> Path:
+    if hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS) / relative_path
+    return Path(__file__).resolve().parent.parent / relative_path
+
+try:
+    from app import log
+except Exception:
+    def log(msg: str) -> None:
+        pass
+
 
 class MainWindow:
     def __init__(self, parent: ctk.CTk):
@@ -45,6 +59,7 @@ class MainWindow:
         self.is_downloading = False
         self.current_session: DownloadSession | None = None
 
+        log("MainWindow.__init__: Criando frame principal...")
         # Container Principal com Borda Neon Ciano/Esmeralda
         self.frame = ctk.CTkFrame(
             parent,
@@ -58,7 +73,71 @@ class MainWindow:
         self._build_ui()
 
     def _build_ui(self):
-        # 1. Header / Barra Superior
+        log("MainWindow: 1. Reservando barra de navegacao inferior...")
+        # 1. Barra Inferior de Navegação por Abas (empacotada primeiro no rodapé)
+        nav_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
+        nav_frame.pack(side="bottom", fill="x", padx=24, pady=(0, 16))
+
+        nav_inner = ctk.CTkFrame(nav_frame, fg_color="transparent")
+        nav_inner.pack(anchor="center")
+
+        # Aba Downloads (Ativa)
+        tab_dl = ctk.CTkButton(
+            nav_inner,
+            text="Downloads",
+            width=100,
+            height=32,
+            fg_color="transparent",
+            text_color="#10b981",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            hover=False,
+        )
+        tab_dl.pack(side="left", padx=8)
+
+        # Aba Histórico
+        tab_hist = ctk.CTkButton(
+            nav_inner,
+            text="Histórico",
+            width=100,
+            height=32,
+            fg_color="transparent",
+            hover_color="#131e2e",
+            text_color="#94a3b8",
+            font=ctk.CTkFont(size=13),
+            command=self._open_history,
+        )
+        tab_hist.pack(side="left", padx=8)
+
+        # Aba Configurações
+        tab_settings = ctk.CTkButton(
+            nav_inner,
+            text="Configurações",
+            width=110,
+            height=32,
+            fg_color="transparent",
+            hover_color="#131e2e",
+            text_color="#94a3b8",
+            font=ctk.CTkFont(size=13),
+            command=self._open_settings,
+        )
+        tab_settings.pack(side="left", padx=8)
+
+        # Aba Sobre
+        tab_about = ctk.CTkButton(
+            nav_inner,
+            text="Sobre",
+            width=90,
+            height=32,
+            fg_color="transparent",
+            hover_color="#131e2e",
+            text_color="#94a3b8",
+            font=ctk.CTkFont(size=13),
+            command=self._open_about,
+        )
+        tab_about.pack(side="left", padx=8)
+
+        log("MainWindow: 2. Construindo Header...")
+        # 2. Header / Barra Superior
         header_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
         header_frame.pack(fill="x", padx=24, pady=(20, 14))
 
@@ -66,17 +145,15 @@ class MainWindow:
         title_box = ctk.CTkFrame(header_frame, fg_color="transparent")
         title_box.pack(side="left")
 
-        logo_badge = ctk.CTkLabel(
-            title_box,
-            text="⬇",
-            font=ctk.CTkFont(size=18, weight="bold"),
-            text_color="#06b6d4",
-            fg_color="#102538",
-            corner_radius=8,
-            width=36,
-            height=36,
-        )
-        logo_badge.pack(side="left", padx=(0, 10))
+        logo_path = get_resource_path("codeline.png")
+        if logo_path.exists():
+            try:
+                pil_logo = Image.open(logo_path)
+                ctk_logo = ctk.CTkImage(light_image=pil_logo, dark_image=pil_logo, size=(30, 30))
+                self.logo_lbl = ctk.CTkLabel(title_box, image=ctk_logo, text="")
+                self.logo_lbl.pack(side="left", padx=(0, 10))
+            except Exception:
+                pass
 
         title_lbl = ctk.CTkLabel(
             title_box,
@@ -95,7 +172,8 @@ class MainWindow:
         )
         version_lbl.pack(side="right", pady=4)
 
-        # 2. Seção de URL
+        log("MainWindow: 3. Construindo Seção de URL...")
+        # 3. Seção de URL
         url_section_label = ctk.CTkLabel(
             self.frame,
             text="Cole o Link do Vídeo ou Playlist do YouTube",
@@ -123,8 +201,8 @@ class MainWindow:
 
         paste_btn = ctk.CTkButton(
             url_input_frame,
-            text="📋 Colar",
-            width=90,
+            text="Colar Link",
+            width=95,
             height=44,
             corner_radius=10,
             fg_color="#06b6d4",
@@ -135,7 +213,8 @@ class MainWindow:
         )
         paste_btn.pack(side="right")
 
-        # 3. Card de Configurações de Download
+        log("MainWindow: 4. Construindo Card de Configurações...")
+        # 4. Card de Configurações de Download
         settings_card = ctk.CTkFrame(
             self.frame,
             fg_color="#131e2e",
@@ -148,7 +227,7 @@ class MainWindow:
         # Título da Seção no Card
         card_title = ctk.CTkLabel(
             settings_card,
-            text="CONFIGURAÇÕES DE DOWNLOAD",
+            text="CONFIGURACOES DE DOWNLOAD",
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color="#38bdf8",
             anchor="w",
@@ -166,7 +245,7 @@ class MainWindow:
 
         fmt_label = ctk.CTkLabel(
             fmt_box,
-            text="📁 Formato",
+            text="Formato de Saida",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#e2e8f0",
             anchor="w",
@@ -198,7 +277,7 @@ class MainWindow:
 
         qual_label = ctk.CTkLabel(
             qual_box,
-            text="⚙️ Qualidade",
+            text="Qualidade / Resolucao",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#e2e8f0",
             anchor="w",
@@ -251,9 +330,9 @@ class MainWindow:
 
         self.change_folder_btn = ctk.CTkButton(
             dest_row,
-            text="📁 Alterar...",
+            text="Alterar Pasta...",
             height=30,
-            width=100,
+            width=115,
             command=self._choose_folder,
             fg_color="#1e293b",
             hover_color="#334155",
@@ -262,10 +341,11 @@ class MainWindow:
         )
         self.change_folder_btn.pack(side="right", padx=10, pady=6)
 
-        # 4. Botão Principal de Download (Destaque Neon)
+        log("MainWindow: 5. Construindo Botão de Download...")
+        # 5. Botão Principal de Download (Destaque Neon)
         self.download_btn = ctk.CTkButton(
             self.frame,
-            text="Baixar Conteúdo ⤓",
+            text="Baixar Conteudo",
             height=48,
             corner_radius=10,
             fg_color="#06b6d4",
@@ -276,7 +356,8 @@ class MainWindow:
         )
         self.download_btn.pack(fill="x", padx=24, pady=(2, 14))
 
-        # 5. Card Integrado: DOWNLOADS ATIVOS / PROGRESSO
+        log("MainWindow: 6. Construindo Card de Downloads Ativos...")
+        # 6. Card Integrado: DOWNLOADS ATIVOS / PROGRESSO
         self.active_card = ctk.CTkFrame(
             self.frame,
             fg_color="#131e2e",
@@ -355,69 +436,9 @@ class MainWindow:
         )
         self.metrics_label.pack(side="right")
 
-        # 6. Barra Inferior de Navegação por Abas
-        nav_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
-        nav_frame.pack(side="bottom", fill="x", padx=24, pady=(0, 16))
-
-        nav_inner = ctk.CTkFrame(nav_frame, fg_color="transparent")
-        nav_inner.pack(anchor="center")
-
-        # Aba Downloads (Ativa)
-        tab_dl = ctk.CTkButton(
-            nav_inner,
-            text="Downloads",
-            width=100,
-            height=32,
-            fg_color="transparent",
-            text_color="#10b981",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            hover=False,
-        )
-        tab_dl.pack(side="left", padx=8)
-
-        # Aba Histórico
-        tab_hist = ctk.CTkButton(
-            nav_inner,
-            text="Histórico",
-            width=100,
-            height=32,
-            fg_color="transparent",
-            hover_color="#131e2e",
-            text_color="#94a3b8",
-            font=ctk.CTkFont(size=13),
-            command=self._open_history,
-        )
-        tab_hist.pack(side="left", padx=8)
-
-        # Aba Configurações
-        tab_settings = ctk.CTkButton(
-            nav_inner,
-            text="Configurações",
-            width=110,
-            height=32,
-            fg_color="transparent",
-            hover_color="#131e2e",
-            text_color="#94a3b8",
-            font=ctk.CTkFont(size=13),
-            command=self._open_settings,
-        )
-        tab_settings.pack(side="left", padx=8)
-
-        # Aba Sobre
-        tab_about = ctk.CTkButton(
-            nav_inner,
-            text="Sobre",
-            width=90,
-            height=32,
-            fg_color="transparent",
-            hover_color="#131e2e",
-            text_color="#94a3b8",
-            font=ctk.CTkFont(size=13),
-            command=self._open_about,
-        )
-        tab_about.pack(side="left", padx=8)
-
+        log("MainWindow: 7. Aplicando selecao inicial de formato...")
         self._on_format_selected(self.format_var.get())
+        log("MainWindow: _build_ui concluido com sucesso!")
 
     def _paste_clipboard(self):
         try:
