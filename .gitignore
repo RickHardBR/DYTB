@@ -1,0 +1,41 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# PyInstaller & Build artifacts
+build/
+dist/
+*.exe
+*.manifest
+*.spec.bak
+
+# Binários locais pesados (distribuídos via Releases ou baixados via build.bat)
+bin/
+*.dll
+*.so
+*.dylib
+
+# Logs & Temporary files
+*.log
+nul
+err.log
+scratch/
+.vault/
+
+# Ambientes virtuais
+venv/
+.venv/
+env/
+.env/
+
+# IDEs e editores
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# SO
+Thumbs.db
+Desktop.ini
+.DS_Store
