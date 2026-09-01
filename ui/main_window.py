@@ -33,7 +33,7 @@ from core.settings import (
     set_default_download_dir,
 )
 from ui.about_dialog import AboutDialog
-from ui.dialogs import CustomNameDialog, DestinationDialog, ErrorDialog, InstallRequiredDialog, ProgressDialog
+from ui.dialogs import CustomNameDialog, ErrorDialog, InstallRequiredDialog
 from ui.history_window import HistoryWindow
 from ui.settings_window import SettingsWindow
 
@@ -41,132 +41,137 @@ from ui.settings_window import SettingsWindow
 class MainWindow:
     def __init__(self, parent: ctk.CTk):
         self.parent = parent
-        self.frame = ctk.CTkFrame(parent, corner_radius=18, fg_color="#101923")
-        self.frame.pack(fill="both", expand=True, padx=18, pady=18)
-
         self.last_download_path: str | None = None
         self.is_downloading = False
         self.current_session: DownloadSession | None = None
-        self.current_dialog: ProgressDialog | None = None
+
+        # Container Principal com Borda Neon Ciano/Esmeralda
+        self.frame = ctk.CTkFrame(
+            parent,
+            corner_radius=16,
+            fg_color="#0e1622",
+            border_color="#06b6d4",
+            border_width=1.5,
+        )
+        self.frame.pack(fill="both", expand=True, padx=16, pady=16)
 
         self._build_ui()
 
     def _build_ui(self):
-        # 1. Barra Superior de Menu
-        menubar = ctk.CTkFrame(self.frame, fg_color="transparent", height=32)
-        menubar.pack(fill="x", padx=24, pady=(16, 8))
+        # 1. Header / Barra Superior
+        header_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
+        header_frame.pack(fill="x", padx=24, pady=(20, 14))
 
-        settings_btn = ctk.CTkButton(
-            menubar,
-            text="Configurações",
-            height=30,
-            width=120,
-            command=self._open_settings,
-            fg_color="#1e293b",
-            hover_color="#334155",
-            font=ctk.CTkFont(size=12, weight="bold"),
+        # Logo e Título à Esquerda
+        title_box = ctk.CTkFrame(header_frame, fg_color="transparent")
+        title_box.pack(side="left")
+
+        logo_badge = ctk.CTkLabel(
+            title_box,
+            text="⬇",
+            font=ctk.CTkFont(size=18, weight="bold"),
+            text_color="#06b6d4",
+            fg_color="#102538",
+            corner_radius=8,
+            width=36,
+            height=36,
         )
-        settings_btn.pack(side="left", padx=(0, 8))
+        logo_badge.pack(side="left", padx=(0, 10))
 
-        history_btn = ctk.CTkButton(
-            menubar,
-            text="Histórico",
-            height=30,
-            width=110,
-            command=self._open_history,
-            fg_color="#1e293b",
-            hover_color="#334155",
-            font=ctk.CTkFont(size=12, weight="bold"),
-        )
-        history_btn.pack(side="left", padx=(0, 8))
-
-        about_btn = ctk.CTkButton(
-            menubar,
-            text="Sobre",
-            height=30,
-            width=80,
-            command=self._open_about,
-            fg_color="#1e293b",
-            hover_color="#334155",
-            font=ctk.CTkFont(size=12, weight="bold"),
-        )
-        about_btn.pack(side="left")
-
-        # 2. Título e Subtítulo
         title_lbl = ctk.CTkLabel(
-            self.frame,
+            title_box,
             text="DYTB Downloader",
-            font=ctk.CTkFont(size=26, weight="bold"),
-            text_color="#ffffff",
-            anchor="w",
+            font=ctk.CTkFont(size=22, weight="bold"),
+            text_color="#10b981",
         )
-        title_lbl.pack(fill="x", padx=24, pady=(12, 2))
+        title_lbl.pack(side="left")
 
-        subtitle_lbl = ctk.CTkLabel(
+        # Versão à Direita
+        version_lbl = ctk.CTkLabel(
+            header_frame,
+            text="DYTB Downloader - v1.0.0",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#64748b",
+        )
+        version_lbl.pack(side="right", pady=4)
+
+        # 2. Seção de URL
+        url_section_label = ctk.CTkLabel(
             self.frame,
-            text="Baixe vídeos e áudios do YouTube com máxima fidelidade, qualidade e rapidez.",
-            font=ctk.CTkFont(size=13),
+            text="Cole o Link do Vídeo ou Playlist do YouTube",
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#94a3b8",
             anchor="w",
         )
-        subtitle_lbl.pack(fill="x", padx=24, pady=(0, 16))
-
-        # 3. Campo de URL com Botão Colar
-        url_label = ctk.CTkLabel(
-            self.frame,
-            text="Link do Vídeo",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#f1f5f9",
-            anchor="w",
-        )
-        url_label.pack(fill="x", padx=24, pady=(0, 6))
+        url_section_label.pack(fill="x", padx=24, pady=(0, 6))
 
         url_input_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
         url_input_frame.pack(fill="x", padx=24, pady=(0, 14))
 
         self.url_entry = ctk.CTkEntry(
             url_input_frame,
-            placeholder_text="Cole o link do YouTube aqui (ex: https://www.youtube.com/watch?v=...)",
+            placeholder_text="https://www.youtube.com/watch?v=...",
             height=44,
             corner_radius=10,
-            border_width=1,
+            fg_color="#09101a",
+            border_color="#06b6d4",
+            border_width=1.5,
+            text_color="#f8fafc",
             font=ctk.CTkFont(size=13),
         )
         self.url_entry.pack(side="left", fill="x", expand=True, padx=(0, 8))
 
         paste_btn = ctk.CTkButton(
             url_input_frame,
-            text="Colar",
-            width=80,
+            text="📋 Colar",
+            width=90,
             height=44,
             corner_radius=10,
-            fg_color="#1e293b",
-            hover_color="#334155",
+            fg_color="#06b6d4",
+            hover_color="#0891b2",
+            text_color="#021d2b",
             font=ctk.CTkFont(size=12, weight="bold"),
             command=self._paste_clipboard,
         )
         paste_btn.pack(side="right")
 
-        # 4. Formato e Qualidade
-        fmt_qual_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
-        fmt_qual_frame.pack(fill="x", padx=24, pady=(0, 14))
-        fmt_qual_frame.grid_columnconfigure((0, 1), weight=1)
+        # 3. Card de Configurações de Download
+        settings_card = ctk.CTkFrame(
+            self.frame,
+            fg_color="#131e2e",
+            corner_radius=12,
+            border_color="#1f2f45",
+            border_width=1,
+        )
+        settings_card.pack(fill="x", padx=24, pady=(0, 14))
 
-        ctk.CTkLabel(
-            fmt_qual_frame,
-            text="Formato de Saída",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#f1f5f9",
+        # Título da Seção no Card
+        card_title = ctk.CTkLabel(
+            settings_card,
+            text="CONFIGURAÇÕES DE DOWNLOAD",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#38bdf8",
             anchor="w",
-        ).grid(row=0, column=0, sticky="w", pady=(0, 6))
+        )
+        card_title.pack(fill="x", padx=16, pady=(12, 10))
 
-        ctk.CTkLabel(
-            fmt_qual_frame,
-            text="Qualidade / Resolução",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#f1f5f9",
+        # Linha de Formato e Qualidade
+        fmt_qual_row = ctk.CTkFrame(settings_card, fg_color="transparent")
+        fmt_qual_row.pack(fill="x", padx=16, pady=(0, 12))
+        fmt_qual_row.grid_columnconfigure((0, 1), weight=1)
+
+        # Formato
+        fmt_box = ctk.CTkFrame(fmt_qual_row, fg_color="transparent")
+        fmt_box.grid(row=0, column=0, sticky="ew", padx=(0, 10))
+
+        fmt_label = ctk.CTkLabel(
+            fmt_box,
+            text="📁 Formato",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#e2e8f0",
             anchor="w",
-        ).grid(row=0, column=1, sticky="w", padx=(12, 0), pady=(0, 6))
+        )
+        fmt_label.pack(fill="x", pady=(0, 4))
 
         format_labels = [v["label"] for v in FORMAT_OPTIONS.values()]
         initial_fmt_key = get_default_format()
@@ -174,14 +179,31 @@ class MainWindow:
         self.format_var = ctk.StringVar(value=initial_fmt_label)
 
         self.format_menu = ctk.CTkOptionMenu(
-            fmt_qual_frame,
+            fmt_box,
             values=format_labels,
             variable=self.format_var,
-            height=40,
-            corner_radius=10,
+            height=38,
+            corner_radius=8,
+            fg_color="#09101a",
+            button_color="#0284c7",
+            button_hover_color="#0369a1",
+            dropdown_fg_color="#131e2e",
             command=self._on_format_selected,
         )
-        self.format_menu.grid(row=1, column=0, sticky="ew")
+        self.format_menu.pack(fill="x")
+
+        # Qualidade
+        qual_box = ctk.CTkFrame(fmt_qual_row, fg_color="transparent")
+        qual_box.grid(row=0, column=1, sticky="ew", padx=(10, 0))
+
+        qual_label = ctk.CTkLabel(
+            qual_box,
+            text="⚙️ Qualidade",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#e2e8f0",
+            anchor="w",
+        )
+        qual_label.pack(fill="x", pady=(0, 4))
 
         quality_labels = [v["label"] for v in QUALITY_OPTIONS.values()]
         initial_qual_key = get_default_quality()
@@ -189,113 +211,211 @@ class MainWindow:
         self.quality_var = ctk.StringVar(value=initial_qual_label)
 
         self.quality_menu = ctk.CTkOptionMenu(
-            fmt_qual_frame,
+            qual_box,
             values=quality_labels,
             variable=self.quality_var,
-            height=40,
-            corner_radius=10,
+            height=38,
+            corner_radius=8,
+            fg_color="#09101a",
+            button_color="#0284c7",
+            button_hover_color="#0369a1",
+            dropdown_fg_color="#131e2e",
         )
-        self.quality_menu.grid(row=1, column=1, sticky="ew", padx=(12, 0))
+        self.quality_menu.pack(fill="x")
 
-        # 5. Pasta de Destino
-        dest_box = ctk.CTkFrame(self.frame, fg_color="#182330", corner_radius=10)
-        dest_box.pack(fill="x", padx=24, pady=(0, 16))
+        # Linha de Destino (Salvar em)
+        dest_row = ctk.CTkFrame(settings_card, fg_color="#09101a", corner_radius=8)
+        dest_row.pack(fill="x", padx=16, pady=(0, 14))
 
-        dest_header = ctk.CTkFrame(dest_box, fg_color="transparent")
-        dest_header.pack(fill="x", padx=14, pady=(10, 4))
+        dest_text_box = ctk.CTkFrame(dest_row, fg_color="transparent")
+        dest_text_box.pack(side="left", fill="x", expand=True, padx=12, pady=8)
 
-        ctk.CTkLabel(
-            dest_header,
-            text="Salvar em:",
-            font=ctk.CTkFont(size=12, weight="bold"),
+        dest_prefix = ctk.CTkLabel(
+            dest_text_box,
+            text="Salvar em: ",
+            font=ctk.CTkFont(size=11, weight="bold"),
             text_color="#94a3b8",
-        ).pack(side="left")
+        )
+        dest_prefix.pack(side="left")
 
         self.dest_label = ctk.CTkLabel(
-            dest_header,
+            dest_text_box,
             text=get_default_download_dir(),
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#38bdf8",
-            wraplength=480,
+            wraplength=400,
             justify="left",
+            anchor="w",
         )
-        self.dest_label.pack(side="left", padx=(8, 0))
-
-        dest_actions = ctk.CTkFrame(dest_box, fg_color="transparent")
-        dest_actions.pack(fill="x", padx=14, pady=(0, 10))
+        self.dest_label.pack(side="left", fill="x", expand=True)
 
         self.change_folder_btn = ctk.CTkButton(
-            dest_actions,
-            text="Alterar Pasta",
+            dest_row,
+            text="📁 Alterar...",
             height=30,
-            width=120,
+            width=100,
             command=self._choose_folder,
             fg_color="#1e293b",
             hover_color="#334155",
             font=ctk.CTkFont(size=11, weight="bold"),
+            corner_radius=6,
         )
-        self.change_folder_btn.pack(side="left", padx=(0, 8))
+        self.change_folder_btn.pack(side="right", padx=10, pady=6)
 
-        self.open_folder_btn = ctk.CTkButton(
-            dest_actions,
-            text="Abrir Pasta",
-            height=30,
-            width=110,
-            command=self._open_current_folder,
-            fg_color="#1e293b",
-            hover_color="#334155",
-            font=ctk.CTkFont(size=11),
+        # 4. Botão Principal de Download (Destaque Neon)
+        self.download_btn = ctk.CTkButton(
+            self.frame,
+            text="Baixar Conteúdo ⤓",
+            height=48,
+            corner_radius=10,
+            fg_color="#06b6d4",
+            hover_color="#0891b2",
+            text_color="#021d2b",
+            font=ctk.CTkFont(size=15, weight="bold"),
+            command=self._handle_download,
         )
-        self.open_folder_btn.pack(side="left")
+        self.download_btn.pack(fill="x", padx=24, pady=(2, 14))
 
-        # 6. Card de Último Download Realizado
-        self.last_download_card = ctk.CTkFrame(self.frame, fg_color="#14212e", corner_radius=10)
-        self.last_download_card.pack(fill="x", padx=24, pady=(0, 16))
-        self.last_download_card.pack_forget()
-
-        self.last_file_label = ctk.CTkLabel(
-            self.last_download_card,
-            text="Concluído: video.mp4",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#22c55e",
-            anchor="w",
-            wraplength=400,
-            justify="left",
+        # 5. Card Integrado: DOWNLOADS ATIVOS / PROGRESSO
+        self.active_card = ctk.CTkFrame(
+            self.frame,
+            fg_color="#131e2e",
+            corner_radius=12,
+            border_color="#1f2f45",
+            border_width=1,
         )
-        self.last_file_label.pack(side="left", padx=14, pady=10)
+        self.active_card.pack(fill="x", padx=24, pady=(0, 14))
+
+        active_header = ctk.CTkFrame(self.active_card, fg_color="transparent")
+        active_header.pack(fill="x", padx=16, pady=(12, 6))
+
+        active_title = ctk.CTkLabel(
+            active_header,
+            text="DOWNLOADS ATIVOS",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#38bdf8",
+        )
+        active_title.pack(side="left")
 
         self.open_last_file_btn = ctk.CTkButton(
-            self.last_download_card,
+            active_header,
             text="Abrir Arquivo",
-            height=30,
-            width=120,
+            height=26,
+            width=100,
             command=self._open_last_download,
             fg_color="#0284c7",
             hover_color="#0369a1",
             font=ctk.CTkFont(size=11, weight="bold"),
+            corner_radius=6,
         )
-        self.open_last_file_btn.pack(side="right", padx=(0, 14), pady=10)
+        self.open_last_file_btn.pack(side="right")
+        self.open_last_file_btn.pack_forget()
 
-        # 7. Botão Principal de Download
-        self.download_btn = ctk.CTkButton(
-            self.frame,
-            text="Baixar Conteúdo",
-            height=50,
-            corner_radius=12,
-            font=ctk.CTkFont(size=16, weight="bold"),
-            command=self._handle_download,
+        # Linha com Título do Arquivo
+        self.active_file_label = ctk.CTkLabel(
+            self.active_card,
+            text="Nenhum download em andamento.",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#e2e8f0",
+            anchor="w",
         )
-        self.download_btn.pack(fill="x", padx=24, pady=(4, 8))
+        self.active_file_label.pack(fill="x", padx=16, pady=(0, 8))
 
-        # 8. Status Label
+        # Barra de Progresso Ciano Neon
+        self.progress_bar = ctk.CTkProgressBar(
+            self.active_card,
+            mode="determinate",
+            height=12,
+            corner_radius=6,
+            progress_color="#06b6d4",
+            fg_color="#09101a",
+        )
+        self.progress_bar.pack(fill="x", padx=16, pady=(0, 8))
+        self.progress_bar.set(0.0)
+
+        # Métricas de Progresso (Status, Velocidade, ETA)
+        metrics_row = ctk.CTkFrame(self.active_card, fg_color="transparent")
+        metrics_row.pack(fill="x", padx=16, pady=(0, 12))
+
         self.status_label = ctk.CTkLabel(
-            self.frame,
+            metrics_row,
             text="Pronto para baixar.",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color="#64748b",
             anchor="w",
         )
-        self.status_label.pack(fill="x", padx=24, pady=(0, 8))
+        self.status_label.pack(side="left")
+
+        self.metrics_label = ctk.CTkLabel(
+            metrics_row,
+            text="",
+            font=ctk.CTkFont(size=11),
+            text_color="#94a3b8",
+            anchor="e",
+        )
+        self.metrics_label.pack(side="right")
+
+        # 6. Barra Inferior de Navegação por Abas
+        nav_frame = ctk.CTkFrame(self.frame, fg_color="transparent")
+        nav_frame.pack(side="bottom", fill="x", padx=24, pady=(0, 16))
+
+        nav_inner = ctk.CTkFrame(nav_frame, fg_color="transparent")
+        nav_inner.pack(anchor="center")
+
+        # Aba Downloads (Ativa)
+        tab_dl = ctk.CTkButton(
+            nav_inner,
+            text="Downloads",
+            width=100,
+            height=32,
+            fg_color="transparent",
+            text_color="#10b981",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            hover=False,
+        )
+        tab_dl.pack(side="left", padx=8)
+
+        # Aba Histórico
+        tab_hist = ctk.CTkButton(
+            nav_inner,
+            text="Histórico",
+            width=100,
+            height=32,
+            fg_color="transparent",
+            hover_color="#131e2e",
+            text_color="#94a3b8",
+            font=ctk.CTkFont(size=13),
+            command=self._open_history,
+        )
+        tab_hist.pack(side="left", padx=8)
+
+        # Aba Configurações
+        tab_settings = ctk.CTkButton(
+            nav_inner,
+            text="Configurações",
+            width=110,
+            height=32,
+            fg_color="transparent",
+            hover_color="#131e2e",
+            text_color="#94a3b8",
+            font=ctk.CTkFont(size=13),
+            command=self._open_settings,
+        )
+        tab_settings.pack(side="left", padx=8)
+
+        # Aba Sobre
+        tab_about = ctk.CTkButton(
+            nav_inner,
+            text="Sobre",
+            width=90,
+            height=32,
+            fg_color="transparent",
+            hover_color="#131e2e",
+            text_color="#94a3b8",
+            font=ctk.CTkFont(size=13),
+            command=self._open_about,
+        )
+        tab_about.pack(side="left", padx=8)
 
         self._on_format_selected(self.format_var.get())
 
@@ -305,7 +425,7 @@ class MainWindow:
             if clipboard_text:
                 self.url_entry.delete(0, "end")
                 self.url_entry.insert(0, clipboard_text)
-                self.status_label.configure(text="Link colado da área de transferência.")
+                self.status_label.configure(text="Link colado com sucesso.")
         except Exception:
             pass
 
@@ -349,16 +469,7 @@ class MainWindow:
         if chosen:
             set_default_download_dir(chosen)
             self.dest_label.configure(text=chosen)
-            self.status_label.configure(text="Pasta de destino atualizada com sucesso.")
-
-    def _open_current_folder(self):
-        folder = get_default_download_dir()
-        if not os.path.exists(folder):
-            os.makedirs(folder, exist_ok=True)
-        try:
-            subprocess.Popen(["explorer", os.path.normpath(folder)])
-        except Exception:
-            pass
+            self.status_label.configure(text="Pasta de destino atualizada.")
 
     def _open_last_download(self):
         if self.last_download_path and os.path.exists(self.last_download_path):
@@ -413,13 +524,29 @@ class MainWindow:
         state = "disabled" if downloading else "normal"
         self.download_btn.configure(
             state=state,
-            text="Baixando..." if downloading else "Baixar Conteúdo",
+            text="Baixando..." if downloading else "Baixar Conteúdo ⤓",
         )
         self.url_entry.configure(state=state)
         self.format_menu.configure(state=state)
         if not is_audio_format(self._get_format_key_from_label(self.format_var.get())):
             self.quality_menu.configure(state=state)
         self.change_folder_btn.configure(state=state)
+
+    def _update_in_app_progress(self, info: ProgressInfo):
+        norm_val = max(0.0, min(1.0, info.percent / 100.0))
+        self.progress_bar.set(norm_val)
+
+        if info.status_text:
+            self.status_label.configure(text=info.status_text)
+        else:
+            self.status_label.configure(text=f"Baixando: {info.percent:.1f}%")
+
+        details = []
+        if info.speed:
+            details.append(f"Velocidade: {info.speed}")
+        if info.eta:
+            details.append(f"Tempo Restante: {info.eta}")
+        self.metrics_label.configure(text=" | ".join(details) if details else "")
 
     def _start_download_task(self, url: str, destination: str, custom_name: str | None = None):
         if self.is_downloading:
@@ -428,17 +555,15 @@ class MainWindow:
         fmt_key = self._get_format_key_from_label(self.format_var.get())
         qual_key = self._get_quality_key_from_label(self.quality_var.get())
 
-        dialog = ProgressDialog(self.parent)
-        self.current_dialog = dialog
         self.current_session = DownloadSession()
-
-        dialog.set_callbacks(
-            on_pause=self._on_pause_download,
-            on_cancel=self._on_cancel_download,
-        )
-
         self._set_ui_downloading_state(True)
-        self.status_label.configure(text=f"Iniciando download...")
+        self.open_last_file_btn.pack_forget()
+
+        display_name = custom_name if custom_name else "Obtendo dados do vídeo..."
+        self.active_file_label.configure(text=f"🎬 {display_name}", text_color="#38bdf8")
+        self.status_label.configure(text="Iniciando conexão com o YouTube...")
+        self.metrics_label.configure(text="")
+        self.progress_bar.set(0.05)
 
         def worker():
             try:
@@ -447,7 +572,7 @@ class MainWindow:
                     output_format=fmt_key,
                     quality=qual_key,
                     custom_name=custom_name,
-                    on_progress=lambda info: self.parent.after(0, lambda: dialog.update_progress(info)),
+                    on_progress=lambda info: self.parent.after(0, lambda: self._update_in_app_progress(info)),
                     save_dir=destination,
                     session=self.current_session,
                 )
@@ -461,47 +586,36 @@ class MainWindow:
                     output_path=output_file,
                 )
 
-                self.parent.after(0, lambda: self._on_download_success(dialog, output_file))
+                self.parent.after(0, lambda: self._on_download_success(output_file))
 
             except DownloadError as exc:
                 if self.current_session and (self.current_session.cancel_requested or self.current_session.pause_requested):
                     action = "pausado" if self.current_session.pause_requested else "cancelado"
-                    self.parent.after(0, lambda: self._on_download_stopped(dialog, action))
+                    self.parent.after(0, lambda: self._on_download_stopped(action))
                 else:
-                    self.parent.after(0, lambda: self._on_download_error(dialog, str(exc)))
+                    self.parent.after(0, lambda: self._on_download_error(str(exc)))
 
             except Exception as exc:
-                self.parent.after(0, lambda: self._on_download_error(dialog, f"Erro inesperado: {exc}"))
+                self.parent.after(0, lambda: self._on_download_error(f"Erro inesperado: {exc}"))
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def _on_pause_download(self, is_paused: bool):
-        if self.current_session:
-            if is_paused:
-                self.current_session.pause()
-            else:
-                self.current_session.resume()
-
-    def _on_cancel_download(self):
-        if self.current_session:
-            self.current_session.cancel()
-
-    def _on_download_stopped(self, dialog: ProgressDialog, action: str):
-        dialog.close()
+    def _on_download_stopped(self, action: str):
         self._set_ui_downloading_state(False)
         self.status_label.configure(text=f"Download {action} pelo usuário.")
+        self.active_file_label.configure(text="Download cancelado.", text_color="#ef4444")
 
-    def _on_download_success(self, dialog: ProgressDialog, output_file: str):
-        dialog.close()
+    def _on_download_success(self, output_file: str):
         self._set_ui_downloading_state(False)
-
         self.last_download_path = output_file
         file_name = Path(output_file).name
 
-        self.last_file_label.configure(text=f"Concluído: {file_name}")
-        self.last_download_card.pack(fill="x", padx=24, pady=(0, 16))
+        self.active_file_label.configure(text=f"✓ Concluído: {file_name}", text_color="#10b981")
+        self.progress_bar.set(1.0)
+        self.status_label.configure(text="Download e conversão finalizados com sucesso!")
+        self.metrics_label.configure(text="100.0%")
+        self.open_last_file_btn.pack(side="right")
 
-        self.status_label.configure(text=f"Download finalizado com sucesso!")
         self.url_entry.delete(0, "end")
 
         if get_auto_open_folder():
@@ -510,8 +624,10 @@ class MainWindow:
             except Exception:
                 pass
 
-    def _on_download_error(self, dialog: ProgressDialog, error_msg: str):
-        dialog.close()
+    def _on_download_error(self, error_msg: str):
         self._set_ui_downloading_state(False)
+        self.active_file_label.configure(text="Falha no download.", text_color="#ef4444")
+        self.progress_bar.set(0.0)
         ErrorDialog(self.parent, "Erro no Download", error_msg)
         self.status_label.configure(text="Falha no download. Verifique a URL e a conexão.")
+
