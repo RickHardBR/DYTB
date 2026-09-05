@@ -13,6 +13,7 @@ from typing import Callable
 from core.formats import (
     AUDIO_FORMATS,
     QUALITY_OPTIONS,
+    clean_youtube_url,
     get_format_extension,
     is_audio_format,
     validate_url,
@@ -105,6 +106,7 @@ def build_ytdlp_command(
     if not validate_url(url):
         raise DownloadError("URL inválida. Cole um link válido do YouTube.")
 
+    clean_url = clean_youtube_url(url)
     download_dir = save_dir or get_download_dir()
     os.makedirs(download_dir, exist_ok=True)
 
@@ -209,7 +211,7 @@ def build_ytdlp_command(
             if has_ffmpeg:
                 cmd.extend(["--merge-output-format", "mkv"])
 
-    cmd.append(url)
+    cmd.append(clean_url)
     return cmd
 
 

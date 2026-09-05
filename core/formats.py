@@ -50,3 +50,50 @@ def validate_url(url: str) -> bool:
         re.IGNORECASE,
     )
     return bool(pattern.match(url.strip()))
+
+
+def clean_youtube_url(url: str) -> str:
+    """Remove parâmetros desnecessários de rádio, mix, tracking e timestamps de URLs do YouTube."""
+    if not url:
+        return ""
+    
+    cleaned = url.strip()
+
+    # Caso 1: URL padrão youtube.com/watch?v=ID ou m.youtube.com/watch?v=ID
+    v_match = re.search(r"[?&]v=([a-zA-Z0-9_-]{11})", cleaned)
+    if v_match:
+        video_id = v_match.group(1)
+        # Se contiver parâmetros de mix do YouTube (RD...) ou rádio, extrai apenas o vídeo limpo
+        if "list=rd" in cleaned.lower() or "start_radio=" in cleaned.lower() or "index=" in cleaned.lower():
+            return f"https://www.youtube.com/watch?v={video_id}"
+        # Se for apenas o vídeo com parâmetros de tracking/timestamp
+        if "playlist?list=" not in cleaned.lower():
+            return f"https://www.youtube.com/watch?v={video_id}"
+
+    # Caso 2: URL curta youtu.be/ID
+    short_match = re.search(r"youtu\.be/([a-zA-Z0-9_-]{11})", cleaned)
+    if short_match:
+        video_id = short_match.group(1)
+        return f"https://www.youtube.com/watch?v={video_id}"
+
+    return cleaned
+
+
+def extract_urls(text: str) -> list[str]:
+    """Extrai, limpa e valida URLs do YouTube a partir de um bloco de texto (linhas, espaços ou vírgulas)."""
+    if not text:
+        return []
+    # Divide por quebras de linha, vírgulas, ponto-e-vírgula ou espaços múltiplos
+    raw_tokens = re.split(r"[\r\n,;\s]+", text.strip())
+    valid_urls: list[str] = []
+    seen = set()
+    for token in raw_tokens:
+        token = token.strip()
+        if token and validate_url(token):
+            cleaned = clean_youtube_url(token)
+            if cleaned not in seen:
+                valid_urls.append(cleaned)
+                seen.add(cleaned)
+    return valid_urls
+
+

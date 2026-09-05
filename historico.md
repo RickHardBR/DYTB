@@ -105,6 +105,41 @@ A interface foi reformulada para seguir a identidade visual moderna da **Imagem 
 
 ---
 
+### 8. Implementação de Múltiplos Downloads e Fila Dinâmica
+- **Extração Inteligente de URLs em Lote (`core/formats.py`):**
+  - Criação da função `extract_urls()` capaz de parsear blocos de texto contendo múltiplos links do YouTube separados por novas linhas, vírgulas, ponto-e-vírgula ou espaços, com deduplicação e validação automática.
+- **Gerenciador de Fila Assíncrono (`core/queue_manager.py`):**
+  - Criação da classe `DownloadItem` e `DownloadQueueManager`.
+  - Processamento sequencial em thread dedicada em background, evitando bloqueios na interface e sobrecarga de banda.
+  - Callbacks thread-safe (`on_item_updated` e `on_queue_finished`) para sincronização em tempo real com a UI CustomTkinter via `parent.after()`.
+  - Suporte a cancelamento individual (`cancel_item`), cancelamento em lote (`cancel_all`) e limpeza de itens finalizados (`clear_completed`).
+- **Interface Visual Moderna de Fila (`ui/main_window.py`):**
+  - Transformação do card de downloads em uma lista com barra de rolagem (`CTkScrollableFrame`).
+  - Cards individuais para cada item da fila exibindo:
+    - Título do vídeo / nome personalizado.
+    - Barra de progresso ciano neon individual.
+    - Status dinâmico (`Aguardando...`, `Baixando...`, `Concluído`, `Erro`, `Cancelado`).
+    - Métricas em tempo real (velocidade de download e tempo restante ETA).
+    - Botões contextuais de ação direta: `Abrir Arquivo` (após conclusão), `✕ Cancelar` (durante execução/espera) e `Remover` (para itens finalizados/cancelados/erro).
+  - Botões globais de cabeçalho: `Cancelar Todos` e `Limpar Finalizados`.
+- **Cobertura de Testes Automatizados (`test_app.py`):**
+  - Testes unitários para `extract_urls()` e ciclo de vida do `DownloadQueueManager` (10 testes 100% aprovados).
+
+---
+
+### 9. Sanitização Automática de URLs do YouTube e Atualização do yt-dlp
+- **Diagnóstico do Erro com Links de Rádio/Mix:**
+  - URLs copiadas diretamente de mixes automáticos do YouTube (ex: `&list=RD...&start_radio=1`) causavam exceção de extração no `yt-dlp` ao rodar com `--no-playlist`.
+- **Sanitização de URLs (`core/formats.py` e `core/downloader.py`):**
+  - Criação da função `clean_youtube_url(url)` que extrai o ID limpo do vídeo (`https://www.youtube.com/watch?v=VIDEO_ID`) e descarta parâmetros de tracking, rádio (`list=RD...`), índices (`index=...`) e timestamps (`t=...`).
+  - Integração da limpeza em lote no `extract_urls` e na construção de comandos do `yt-dlp`.
+- **Atualização do Binário `yt-dlp.exe`:**
+  - Atualização do executável embutido em `bin/yt-dlp.exe` para a versão mais recente oficial do GitHub.
+- **Testes Unitários:**
+  - Suíte de 11 testes automatizados cobrindo links com rádio/mix, links curtos (`youtu.be`) e parâmetros de tracking.
+
+---
+
 ## 📁 Estrutura Atual dos Arquivos do Projeto
 
 ```text
@@ -115,16 +150,17 @@ DYTB/
 ├── core/
 │   ├── __init__.py
 │   ├── downloader.py        # Execução de download, extração de áudio e parse de progresso
-│   ├── formats.py           # Formatos suportados (MP4, WebM, MKV, MP3, WAV, M4A)
+│   ├── formats.py           # Formatos suportados e extração de múltiplas URLs
 │   ├── history.py           # Persistência e gerenciamento do histórico em JSON
 │   ├── installer.py         # Priorização de binários embutidos e resolução de PATH
+│   ├── queue_manager.py     # Gerenciador de fila assíncrono para múltiplos downloads
 │   └── settings.py          # Preferências do usuário (pasta padrão, formato, qualidade)
 ├── ui/
 │   ├── __init__.py
 │   ├── about_dialog.py      # Janela Sobre com RickHardDev, link Instagram e logo codeLine
 │   ├── dialogs.py           # Diálogos de nome customizado, erros e confirmações
 │   ├── history_window.py    # Interface do histórico de downloads
-│   ├── main_window.py       # Janela principal moderna (Design Dark/Neon)
+│   ├── main_window.py       # Janela principal moderna com fila de downloads e scroll
 │   └── settings_window.py   # Janela de configurações
 ├── docs/
 │   └── screenshots/
@@ -158,3 +194,4 @@ O script executará automaticamente:
 1. Instalação/atualização de dependências.
 2. Compilação do executável portátil `DYTB.exe` com PyInstaller.
 3. Compilação do instalador `DYTB_Setup.exe` com Inno Setup.
+

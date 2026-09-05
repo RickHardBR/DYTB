@@ -7,11 +7,14 @@ from core.downloader import build_ytdlp_command, parse_progress_line, sanitize_f
 from core.formats import (
     FORMAT_OPTIONS,
     QUALITY_OPTIONS,
+    clean_youtube_url,
+    extract_urls,
     get_format_extension,
     is_audio_format,
     validate_url,
 )
 from core.history import add_to_history, clear_history, load_history, remove_from_history
+from core.queue_manager import DownloadItem, DownloadQueueManager
 
 
 class TestDYTB(unittest.TestCase):
@@ -22,7 +25,59 @@ class TestDYTB(unittest.TestCase):
         self.assertFalse(validate_url("https://example.com/video"))
         self.assertFalse(validate_url(""))
 
+    def test_clean_youtube_url(self):
+        # Link com rádio/mix fornecido pelo usuário
+        mix_url = "https://www.youtube.com/watch?v=0PkbdbJLfeM&list=RD0PkbdbJLfeM&start_radio=1"
+        cleaned = clean_youtube_url(mix_url)
+        self.assertEqual(cleaned, "https://www.youtube.com/watch?v=0PkbdbJLfeM")
+
+        # Link com parâmetros de tempo e tracking
+        tracking_url = "https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42s&feature=shared"
+        self.assertEqual(clean_youtube_url(tracking_url), "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+
+        # Link encurtado com mix
+        short_url = "https://youtu.be/0PkbdbJLfeM?list=RD0PkbdbJLfeM"
+        self.assertEqual(clean_youtube_url(short_url), "https://www.youtube.com/watch?v=0PkbdbJLfeM")
+
+    def test_extract_urls(self):
+        text = """
+        https://www.youtube.com/watch?v=0PkbdbJLfeM&list=RD0PkbdbJLfeM&start_radio=1
+        https://youtu.be/abc123xyz
+        invalido link http://google.com
+        https://m.youtube.com/watch?v=99999999999
+        https://www.youtube.com/watch?v=0PkbdbJLfeM
+        """
+        urls = extract_urls(text)
+        self.assertEqual(len(urls), 3)
+        self.assertIn("https://www.youtube.com/watch?v=0PkbdbJLfeM", urls)
+        self.assertIn("https://youtu.be/abc123xyz", urls)
+        self.assertIn("https://www.youtube.com/watch?v=99999999999", urls)
+
+    def test_queue_manager_add_and_counts(self):
+        qm = DownloadQueueManager()
+        self.assertEqual(qm.get_counts()["total"], 0)
+
+        item1 = qm.add_item("https://youtu.be/1", "mp4", "1080p")
+        self.assertEqual(qm.get_counts()["total"], 1)
+        self.assertEqual(qm.get_counts()["pending"], 1)
+
+        added = qm.add_items(["https://youtu.be/2", "https://youtu.be/3"], "mp3", "best")
+        self.assertEqual(len(added), 2)
+        self.assertEqual(qm.get_counts()["total"], 3)
+        self.assertEqual(qm.get_counts()["pending"], 3)
+
+        qm.cancel_item(item1.id)
+        self.assertEqual(qm.get_counts()["cancelled"], 1)
+        self.assertEqual(qm.get_counts()["pending"], 2)
+
+        qm.cancel_all()
+        self.assertEqual(qm.get_counts()["cancelled"], 3)
+
+        qm.clear_completed()
+        self.assertEqual(qm.get_counts()["total"], 0)
+
     def test_formats_and_extensions(self):
+
         self.assertTrue(is_audio_format("mp3"))
         self.assertTrue(is_audio_format("wav"))
         self.assertTrue(is_audio_format("m4a"))
