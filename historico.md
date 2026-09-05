@@ -244,6 +244,20 @@ DYTB/
 
 ---
 
+### 12. Extração de Manifestos de Streaming HLS/DASH e Dados do Player Hotmart
+
+- **Leitura Automática de JSON e Mídias de Cursos**:
+  - Implementado parser inteligente em `core/formats.py` que reconhece quando o usuário cola dados de depuração JSON do player (`"mediaCode"`) ou URLs de manifesto `.m3u8`/`.mpd`.
+  - Converte automaticamente para o endpoint de embed correspondente ou extrai diretamente a URL do manifesto para o motor de download.
+- **Isolamento e Preservação de Plataformas**:
+  - Todas as plataformas anteriores (YouTube, Vimeo, Instagram, TikTok, etc.) permanecem 100% operacionais e preservadas, sem efeitos colaterais.
+- **Diagnóstico EAD Passo a Passo**:
+  - Caso seja inserida uma URL de página de membros do Hotmart Club (SPA), o `ErrorDetailsDialog` exibe instruções objetivas para captura rápida do stream `.m3u8` via aba Rede do navegador (F12).
+- **Testes Unitários**:
+  - Suite expandida para **16 testes unitários** em `test_app.py`, todos passando com 100% de sucesso.
+
+---
+
 ## 🚀 Como Recompilar o Projeto
 
 Para gerar novamente as versões portátil e instalador após qualquer alteração:

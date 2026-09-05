@@ -160,7 +160,22 @@ def format_friendly_error(raw_error: str, platform: str = "") -> tuple[str, str,
         )
         return title, summary, guide
 
-    # Caso 5: FFmpeg Ausente
+    # Caso 5: URL de página de curso EAD / Hotmart Club
+    if "unsupported url" in err_lower and any(p in err_lower for p in ["hotmart", "dio.me", "pandavideo"]):
+        title = "Página de Curso EAD / Stream HLS"
+        summary = "A página da aula usa streaming dinâmico (.m3u8)."
+        guide = (
+            f"A plataforma ({plat_name}) entrega os vídeos das aulas através de streams fragmentados (.m3u8) em vez de links diretos de página.\n\n"
+            "Como baixar essa aula no DYTB:\n"
+            "1. Na página da aula no seu navegador, pressione F12 (Ferramentas do Desenvolvedor).\n"
+            "2. Clique na aba 'Rede' (Network) e digite 'm3u8' no campo de filtro.\n"
+            "3. Dê Play no vídeo (ou avance alguns segundos).\n"
+            "4. Clique com o botão direito no link que aparecer (ex: master.m3u8) e selecione 'Copiar link'.\n"
+            "5. Cole o link no DYTB e clique em Baixar (o DYTB baixa e junta todos os fragmentos em 1080p Full HD automaticamente!)."
+        )
+        return title, summary, guide
+
+    # Caso 6: FFmpeg Ausente
     if "ffmpeg" in err_lower and ("not found" in err_lower or "necessário" in err_lower or "missing" in err_lower):
         title = "FFmpeg Não Encontrado"
         summary = "O FFmpeg é necessário para converter ou mesclar o arquivo."
@@ -172,7 +187,7 @@ def format_friendly_error(raw_error: str, platform: str = "") -> tuple[str, str,
         )
         return title, summary, guide
 
-    # Caso 6: Erro de Rede / Conexão / Timeout
+    # Caso 7: Erro de Rede / Conexão / Timeout
     if any(k in err_lower for k in ["timed out", "connection refused", "network is unreachable", "getaddrinfo failed", "sslerror", "winerror 10060"]):
         title = "Falha de Conexão com a Internet"
         summary = "Não foi possível estabelecer contato com os servidores da plataforma."
@@ -277,7 +292,13 @@ def build_ytdlp_command(
     if platform == "Vimeo":
         cmd.extend(["--referer", "https://vimeo.com/"])
     elif platform in ("Hotmart / EAD", "DIO", "Panda Video"):
-        cmd.extend(["--referer", clean_url])
+        if "hotmart" in clean_url.lower():
+            cmd.extend([
+                "--referer", "https://player.hotmart.com/",
+                "--add-header", "Origin: https://player.hotmart.com",
+            ])
+        else:
+            cmd.extend(["--referer", clean_url])
 
     if ffmpeg_bin:
         cmd.extend(["--ffmpeg-location", os.path.dirname(ffmpeg_bin)])

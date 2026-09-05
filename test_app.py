@@ -229,6 +229,25 @@ class TestDYTB(unittest.TestCase):
         t3, s3, g3 = format_friendly_error(not_found, "Instagram")
         self.assertEqual(t3, "Vídeo Não Encontrado")
 
+        # Caso Hotmart Club EAD
+        ead_unsupported = "ERROR: Unsupported URL: https://hotmart.com/pt-br/club/curso/products/1/content/E4zWklkQel"
+        t4, s4, g4 = format_friendly_error(ead_unsupported, "Hotmart / EAD")
+        self.assertEqual(t4, "Página de Curso EAD / Stream HLS")
+        self.assertIn("F12", g4)
+
+    def test_hotmart_json_and_stream_extraction(self):
+        hotmart_json = '{"media":{"bandwidth":"1293.95 Kbps","mediaCode":"GZWWKJWEZA","user":"9M7GVxwewK"}}'
+        urls = extract_urls(hotmart_json)
+        self.assertEqual(len(urls), 1)
+        self.assertEqual(urls[0], "https://player.hotmart.com/embed/GZWWKJWEZA")
+        self.assertEqual(detect_platform(urls[0]), "Hotmart / EAD")
+
+        stream_embed = "Texto qualquer com https://cdn.hotmart.com/stream/GZWWKJWEZA/master.m3u8?token=123 dentro"
+        urls2 = extract_urls(stream_embed)
+        self.assertEqual(len(urls2), 1)
+        self.assertTrue(urls2[0].endswith(".m3u8?token=123"))
+        self.assertEqual(detect_platform(urls2[0]), "HLS Stream (.m3u8)")
+
 
 if __name__ == "__main__":
     unittest.main()

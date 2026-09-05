@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 from urllib.parse import urlparse
 
@@ -52,6 +53,13 @@ def detect_platform(url: str) -> str:
     
     url_lower = url.strip().lower()
 
+    # Prioridade 1: Streams diretos de protocolo
+    if ".m3u8" in url_lower:
+        return "HLS Stream (.m3u8)"
+    if ".mpd" in url_lower:
+        return "DASH Stream (.mpd)"
+
+    # Prioridade 2: Plataformas reconhecidas
     if any(d in url_lower for d in ["youtube.com", "youtu.be"]):
         return "YouTube"
     if "vimeo.com" in url_lower:
@@ -68,7 +76,7 @@ def detect_platform(url: str) -> str:
         return "Twitch"
     if "dailymotion.com" in url_lower or "dai.ly" in url_lower:
         return "Dailymotion"
-    if any(d in url_lower for d in ["hotmart.com", "hotmart.tv"]):
+    if any(d in url_lower for d in ["hotmart.com", "hotmart.tv", "player.hotmart"]):
         return "Hotmart / EAD"
     if "dio.me" in url_lower or "web.dio.me" in url_lower:
         return "DIO"
@@ -76,10 +84,6 @@ def detect_platform(url: str) -> str:
         return "Panda Video"
     if "wistia" in url_lower:
         return "Wistia"
-    if ".m3u8" in url_lower:
-        return "HLS Stream (.m3u8)"
-    if ".mpd" in url_lower:
-        return "DASH Stream (.mpd)"
     if any(url_lower.endswith(ext) or f"{ext}?" in url_lower for ext in [".mp4", ".webm", ".mkv", ".ts"]):
         return "Vídeo Direto"
 
@@ -161,6 +165,13 @@ def clean_media_url(url: str) -> str:
             return f"https://player.vimeo.com/video/{video_id}"
         return cleaned
 
+    if platform == "Hotmart / EAD":
+        # Remove tracking de acesso de hub/produto
+        cleaned = re.sub(r"([?&])(access_source|utm_[^&=]+|ref|src)=[^&]*", "", cleaned)
+        cleaned = re.sub(r"\?&", "?", cleaned)
+        cleaned = re.sub(r"[?&]$", "", cleaned)
+        return cleaned
+
     if platform in ("TikTok", "Twitter / X", "Facebook"):
         cleaned = re.sub(r"([?&])(igsh|utm_[^&=]+|si|s|t|fbclid)=[^&]*", "", cleaned)
         cleaned = re.sub(r"\?&", "?", cleaned)
@@ -170,18 +181,34 @@ def clean_media_url(url: str) -> str:
     return cleaned
 
 
-
 def extract_urls(text: str) -> list[str]:
-    """Extrai, limpa e valida URLs de múltiplas plataformas a partir de um bloco de texto."""
+    """
+    Extrai, limpa e valida URLs de múltiplas plataformas a partir de um bloco de texto,
+    incluindo extração inteligente de streams .m3u8/.mpd e dados JSON do player Hotmart/EAD.
+    """
     if not text:
         return []
     
-    # Divide por quebras de linha, vírgulas, ponto-e-vírgula ou espaços múltiplos
-    raw_tokens = re.split(r"[\r\n,;\s]+", text.strip())
+    raw_text = text.strip()
+
+    # Caso Especial 1: Usuário colou JSON do Player Hotmart com mediaCode
+    if ("mediacode" in raw_text.lower() or "hasnativehls" in raw_text.lower()) and "{" in raw_text:
+        code_match = re.search(r'["\']?mediaCode["\']?\s*:\s*["\']([a-zA-Z0-9_-]+)["\']', raw_text, re.IGNORECASE)
+        if code_match:
+            media_code = code_match.group(1)
+            return [f"https://player.hotmart.com/embed/{media_code}"]
+
+    # Extrai todas as URLs HTTP/HTTPS do texto (mesmo embutidas em logs, curl ou parâmetros)
+    url_pattern = re.compile(r'https?://[^\s"\'<>]+', re.IGNORECASE)
+    matches = url_pattern.findall(raw_text)
+
     valid_urls: list[str] = []
     seen = set()
-    for token in raw_tokens:
-        token = token.strip()
+
+    tokens = matches if matches else re.split(r"[\r\n,;\s]+", raw_text)
+
+    for token in tokens:
+        token = token.strip().strip('"\'').rstrip(")")
         if token and validate_media_url(token):
             cleaned = clean_media_url(token)
             if cleaned not in seen:
