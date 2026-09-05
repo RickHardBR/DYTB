@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+from urllib.parse import urlparse
 
 AUDIO_FORMATS = {"mp3", "wav", "m4a"}
 VIDEO_FORMATS = {"mp4", "webm", "mkv"}
@@ -44,12 +45,63 @@ def is_playlist_url(url: str) -> bool:
     return any(keyword in cleaned for keyword in ["playlist?list=", "&list=", "channel/", "/playlists"])
 
 
-def validate_url(url: str) -> bool:
+def detect_platform(url: str) -> str:
+    """Detecta automaticamente a plataforma ou tipo de stream do link fornecido."""
+    if not url:
+        return "Desconhecido"
+    
+    url_lower = url.strip().lower()
+
+    if any(d in url_lower for d in ["youtube.com", "youtu.be"]):
+        return "YouTube"
+    if "vimeo.com" in url_lower:
+        return "Vimeo"
+    if "tiktok.com" in url_lower:
+        return "TikTok"
+    if "instagram.com" in url_lower:
+        return "Instagram"
+    if any(d in url_lower for d in ["twitter.com", "x.com"]):
+        return "Twitter / X"
+    if any(d in url_lower for d in ["facebook.com", "fb.watch"]):
+        return "Facebook"
+    if "twitch.tv" in url_lower:
+        return "Twitch"
+    if "dailymotion.com" in url_lower or "dai.ly" in url_lower:
+        return "Dailymotion"
+    if any(d in url_lower for d in ["hotmart.com", "hotmart.tv"]):
+        return "Hotmart / EAD"
+    if "dio.me" in url_lower or "web.dio.me" in url_lower:
+        return "DIO"
+    if "pandavideo" in url_lower:
+        return "Panda Video"
+    if "wistia" in url_lower:
+        return "Wistia"
+    if ".m3u8" in url_lower:
+        return "HLS Stream (.m3u8)"
+    if ".mpd" in url_lower:
+        return "DASH Stream (.mpd)"
+    if any(url_lower.endswith(ext) or f"{ext}?" in url_lower for ext in [".mp4", ".webm", ".mkv", ".ts"]):
+        return "Vídeo Direto"
+
+    return "Web / Multi-Plataforma"
+
+
+def validate_media_url(url: str) -> bool:
+    """Valida se a URL é um link HTTP/HTTPS válido para qualquer plataforma de mídia."""
+    if not url:
+        return False
+    url = url.strip()
+    # Padrão universal para HTTP/HTTPS
     pattern = re.compile(
-        r"^(https?://)?(www\.)?(youtube\.com|youtu\.be|m\.youtube\.com)[^\s]*$",
+        r"^https?://[^\s/$.?#].[^\s]*$",
         re.IGNORECASE,
     )
-    return bool(pattern.match(url.strip()))
+    return bool(pattern.match(url))
+
+
+def validate_url(url: str) -> bool:
+    """Validador universal mantido para compatibilidade com o código existente."""
+    return validate_media_url(url)
 
 
 def clean_youtube_url(url: str) -> str:
@@ -63,10 +115,8 @@ def clean_youtube_url(url: str) -> str:
     v_match = re.search(r"[?&]v=([a-zA-Z0-9_-]{11})", cleaned)
     if v_match:
         video_id = v_match.group(1)
-        # Se contiver parâmetros de mix do YouTube (RD...) ou rádio, extrai apenas o vídeo limpo
         if "list=rd" in cleaned.lower() or "start_radio=" in cleaned.lower() or "index=" in cleaned.lower():
             return f"https://www.youtube.com/watch?v={video_id}"
-        # Se for apenas o vídeo com parâmetros de tracking/timestamp
         if "playlist?list=" not in cleaned.lower():
             return f"https://www.youtube.com/watch?v={video_id}"
 
@@ -79,21 +129,41 @@ def clean_youtube_url(url: str) -> str:
     return cleaned
 
 
+def clean_media_url(url: str) -> str:
+    """Sanitiza URLs de diversas plataformas, removendo parâmetros de tracking mas preservando autenticação de streams."""
+    if not url:
+        return ""
+    
+    cleaned = url.strip()
+    platform = detect_platform(cleaned)
+
+    if platform == "YouTube":
+        return clean_youtube_url(cleaned)
+
+    if platform in ("TikTok", "Instagram", "Twitter / X"):
+        # Remove parâmetros de tracking comuns em redes sociais
+        cleaned = re.sub(r"([?&])(igsh|utm_[^&=]+|si|s|t|fbclid)=[^&]*", "", cleaned)
+        cleaned = re.sub(r"\?&", "?", cleaned)
+        cleaned = re.sub(r"[?&]$", "", cleaned)
+        return cleaned
+
+    return cleaned
+
+
 def extract_urls(text: str) -> list[str]:
-    """Extrai, limpa e valida URLs do YouTube a partir de um bloco de texto (linhas, espaços ou vírgulas)."""
+    """Extrai, limpa e valida URLs de múltiplas plataformas a partir de um bloco de texto."""
     if not text:
         return []
+    
     # Divide por quebras de linha, vírgulas, ponto-e-vírgula ou espaços múltiplos
     raw_tokens = re.split(r"[\r\n,;\s]+", text.strip())
     valid_urls: list[str] = []
     seen = set()
     for token in raw_tokens:
         token = token.strip()
-        if token and validate_url(token):
-            cleaned = clean_youtube_url(token)
+        if token and validate_media_url(token):
+            cleaned = clean_media_url(token)
             if cleaned not in seen:
                 valid_urls.append(cleaned)
                 seen.add(cleaned)
     return valid_urls
-
-

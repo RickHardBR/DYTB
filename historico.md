@@ -140,6 +140,27 @@ A interface foi reformulada para seguir a identidade visual moderna da **Imagem 
 
 ---
 
+### 10. Expansão para Downloader Multi-Plataforma & Streams Fragmentados (HLS/DASH)
+- **Detecção Inteligente de Plataforma (`core/formats.py`):**
+  - Implementação da função `detect_platform(url)` com suporte a:
+    - YouTube, Vimeo, TikTok, Instagram, Twitter / X, Facebook, Twitch, Dailymotion.
+    - Plataformas de cursos/EAD: Hotmart, DIO (`web.dio.me`), Panda Video, Wistia.
+    - Protocolos de streaming: HLS (`.m3u8`), DASH (`.mpd`), Vídeos Diretos (`.mp4`, `.webm`, `.mkv`, `.ts`).
+- **Validador e Sanitizador Universal de Links (`validate_media_url`, `clean_media_url`):**
+  - Validação aberta para URLs de streaming e websites de vídeo em geral.
+  - Limpeza de parâmetros de tracking de redes sociais (`igsh`, `utm_*`, `si`, `fbclid`) preservando tokens de autenticação em manifests `.m3u8` e `.mpd`.
+- **Pipeline de Fusão de Segmentos Fragmentados (`core/downloader.py`):**
+  - Configuração do pipeline para download concorrente de fragmentos (`--concurrent-fragments 5`, `--hls-prefer-native`, `--fragment-retries 10`).
+  - Fusão e conversão automática contínua de blocos `.ts`/`.m4s` em arquivo `.mp4`/`.mp3` final sem perdas via FFmpeg embutido.
+  - Inclusão de User-Agent moderno padrão para evitar bloqueios de anti-hotlink em embeds.
+- **Interface Visual Aprimorada (`ui/main_window.py`):**
+  - Badge de identificação da plataforma em cada card da fila de download (`[YouTube]`, `[Vimeo]`, `[TikTok]`, `[HLS Stream]`, `[Hotmart]`, `[DIO]`).
+  - Textos e placeholders de entrada adaptados para links e streams universais.
+- **Suíte de Testes Automatizados (`test_app.py`):**
+  - 12 testes unitários cobrindo todas as plataformas e tipos de stream com 100% de aprovação.
+
+---
+
 ## 📁 Estrutura Atual dos Arquivos do Projeto
 
 ```text

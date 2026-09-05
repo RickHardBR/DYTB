@@ -181,10 +181,10 @@ class MainWindow:
         version_lbl.pack(side="right", pady=4)
 
         log("MainWindow: 3. Construindo Seção de URL...")
-        # 3. Seção de URL
+        # 3. Seção de URL Multi-Plataforma
         url_section_label = ctk.CTkLabel(
             self.frame,
-            text="Cole um ou múltiplos links do YouTube (separados por espaço ou quebra de linha)",
+            text="Cole um ou múltiplos links (YouTube, Vimeo, TikTok, Instagram, Hotmart, DIO, .m3u8...)",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#94a3b8",
             anchor="w",
@@ -196,7 +196,7 @@ class MainWindow:
 
         self.url_entry = ctk.CTkEntry(
             url_input_frame,
-            placeholder_text="https://www.youtube.com/watch?v=... (Cole um ou mais links)",
+            placeholder_text="https://... (Cole um ou mais links de qualquer plataforma ou stream .m3u8)",
             height=44,
             corner_radius=10,
             fg_color="#09101a",
@@ -502,19 +502,18 @@ class MainWindow:
     def _handle_download(self):
         raw_text = self.url_entry.get().strip()
         if not raw_text:
-            ErrorDialog(self.parent, "Link Obrigatório", "Por favor, cole ao menos um link do YouTube antes de iniciar.")
+            ErrorDialog(self.parent, "Link Obrigatório", "Por favor, cole ao menos um link de vídeo, plataforma ou stream antes de iniciar.")
             return
 
         urls = extract_urls(raw_text)
         if not urls:
-            # Tenta validar se a URL é válida diretamente
             if validate_url(raw_text):
                 urls = [raw_text]
             else:
                 ErrorDialog(
                     self.parent,
                     "Link Inválido",
-                    "Nenhum link válido do YouTube foi encontrado no texto inserido.",
+                    "Nenhum link válido de vídeo, plataforma ou stream foi encontrado no texto inserido.",
                 )
                 return
 
@@ -575,7 +574,6 @@ class MainWindow:
 
     def _clear_completed_items(self):
         self.queue_manager.clear_completed()
-        # Remove widgets que não estão mais na lista
         existing_ids = {it.id for it in self.queue_manager.items}
         for item_id in list(self.item_widgets.keys()):
             if item_id not in existing_ids:
@@ -600,7 +598,6 @@ class MainWindow:
         self._update_queue_header_counts()
         counts = self.queue_manager.get_counts()
         if counts["completed"] > 0 and get_auto_open_folder():
-            # Abre a pasta do último download concluído
             for it in reversed(self.queue_manager.items):
                 if it.status == "completed" and it.output_path and os.path.exists(it.output_path):
                     try:
@@ -638,7 +635,7 @@ class MainWindow:
             self.empty_label.pack_forget()
 
         if item.id not in self.item_widgets:
-            # Cria novo card de item na lista
+            # Cria novo card de item na lista com suporte multiplataforma
             item_card = ctk.CTkFrame(
                 self.scroll_frame,
                 fg_color="#131e2e",
@@ -648,9 +645,19 @@ class MainWindow:
             )
             item_card.pack(fill="x", pady=4, padx=4)
 
-            # Linha superior: Título e Botão de Ação
+            # Linha superior: Badge de Plataforma + Título + Botão de Ação
             top_row = ctk.CTkFrame(item_card, fg_color="transparent")
             top_row.pack(fill="x", padx=10, pady=(6, 4))
+
+            plat_badge = ctk.CTkLabel(
+                top_row,
+                text=f" {item.platform} ",
+                font=ctk.CTkFont(size=9, weight="bold"),
+                text_color="#38bdf8",
+                fg_color="#0b121c",
+                corner_radius=4,
+            )
+            plat_badge.pack(side="left", padx=(0, 6))
 
             title_lbl = ctk.CTkLabel(
                 top_row,
@@ -675,7 +682,7 @@ class MainWindow:
             )
             action_btn.pack(side="right", padx=(6, 0))
 
-            # Barra de progresso
+            # Barra de progresso neon
             p_bar = ctk.CTkProgressBar(
                 item_card,
                 mode="determinate",

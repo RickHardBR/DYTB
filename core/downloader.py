@@ -13,9 +13,11 @@ from typing import Callable
 from core.formats import (
     AUDIO_FORMATS,
     QUALITY_OPTIONS,
-    clean_youtube_url,
+    clean_media_url,
+    detect_platform,
     get_format_extension,
     is_audio_format,
+    validate_media_url,
     validate_url,
 )
 from core.installer import _refresh_system_path, ensure_yt_dlp_available
@@ -103,10 +105,11 @@ def build_ytdlp_command(
     fallback_youtube_client: bool = False,
     save_dir: str | None = None,
 ) -> list[str]:
-    if not validate_url(url):
-        raise DownloadError("URL inválida. Cole um link válido do YouTube.")
+    if not validate_media_url(url):
+        raise DownloadError("URL inválida. Cole um link válido de vídeo, plataforma ou stream.")
 
-    clean_url = clean_youtube_url(url)
+    clean_url = clean_media_url(url)
+    platform = detect_platform(clean_url)
     download_dir = save_dir or get_download_dir()
     os.makedirs(download_dir, exist_ok=True)
 
@@ -134,6 +137,15 @@ def build_ytdlp_command(
         "--windows-filenames",
         "--no-keep-video",
         "--no-playlist",
+        "--concurrent-fragments",
+        "5",
+        "--hls-prefer-native",
+        "--retries",
+        "5",
+        "--fragment-retries",
+        "10",
+        "--user-agent",
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "--compat-options",
         "no-youtube-unavailable-videos",
         "--output",
@@ -145,7 +157,7 @@ def build_ytdlp_command(
     if ffmpeg_bin:
         cmd.extend(["--ffmpeg-location", os.path.dirname(ffmpeg_bin)])
 
-    if fallback_youtube_client:
+    if platform == "YouTube" and fallback_youtube_client:
         cmd.extend([
             "--extractor-args",
             "youtube:player_client=android,web",

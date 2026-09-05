@@ -7,10 +7,13 @@ from core.downloader import build_ytdlp_command, parse_progress_line, sanitize_f
 from core.formats import (
     FORMAT_OPTIONS,
     QUALITY_OPTIONS,
+    clean_media_url,
     clean_youtube_url,
+    detect_platform,
     extract_urls,
     get_format_extension,
     is_audio_format,
+    validate_media_url,
     validate_url,
 )
 from core.history import add_to_history, clear_history, load_history, remove_from_history
@@ -20,10 +23,23 @@ from core.queue_manager import DownloadItem, DownloadQueueManager
 class TestDYTB(unittest.TestCase):
     def test_url_validation(self):
         self.assertTrue(validate_url("https://www.youtube.com/watch?v=dQw4w9WgXcQ"))
-        self.assertTrue(validate_url("https://youtu.be/dQw4w9WgXcQ"))
-        self.assertTrue(validate_url("http://m.youtube.com/watch?v=dQw4w9WgXcQ"))
-        self.assertFalse(validate_url("https://example.com/video"))
+        self.assertTrue(validate_url("https://vimeo.com/123456789"))
+        self.assertTrue(validate_url("https://www.tiktok.com/@user/video/12345"))
+        self.assertTrue(validate_url("https://example.com/stream/playlist.m3u8"))
+        self.assertFalse(validate_url("htp:/invalido"))
         self.assertFalse(validate_url(""))
+
+    def test_platform_detection(self):
+        self.assertEqual(detect_platform("https://www.youtube.com/watch?v=123"), "YouTube")
+        self.assertEqual(detect_platform("https://vimeo.com/76979871"), "Vimeo")
+        self.assertEqual(detect_platform("https://www.tiktok.com/@creator/video/1234"), "TikTok")
+        self.assertEqual(detect_platform("https://www.instagram.com/reel/C12345/"), "Instagram")
+        self.assertEqual(detect_platform("https://x.com/user/status/123"), "Twitter / X")
+        self.assertEqual(detect_platform("https://web.dio.me/course/video-aula"), "DIO")
+        self.assertEqual(detect_platform("https://hotmart.com/member/lesson/1"), "Hotmart / EAD")
+        self.assertEqual(detect_platform("https://cdn.example.com/live/index.m3u8"), "HLS Stream (.m3u8)")
+        self.assertEqual(detect_platform("https://cdn.example.com/live/manifest.mpd"), "DASH Stream (.mpd)")
+        self.assertEqual(detect_platform("https://example.com/video.mp4"), "Vídeo Direto")
 
     def test_clean_youtube_url(self):
         # Link com rádio/mix fornecido pelo usuário
@@ -42,16 +58,18 @@ class TestDYTB(unittest.TestCase):
     def test_extract_urls(self):
         text = """
         https://www.youtube.com/watch?v=0PkbdbJLfeM&list=RD0PkbdbJLfeM&start_radio=1
-        https://youtu.be/abc123xyz
-        invalido link http://google.com
-        https://m.youtube.com/watch?v=99999999999
+        https://vimeo.com/76979871
+        https://www.tiktok.com/@test/video/1234?igsh=abcd123
+        https://cdn.site.com/video.m3u8
+        texto invalido
         https://www.youtube.com/watch?v=0PkbdbJLfeM
         """
         urls = extract_urls(text)
-        self.assertEqual(len(urls), 3)
+        self.assertEqual(len(urls), 4)
         self.assertIn("https://www.youtube.com/watch?v=0PkbdbJLfeM", urls)
-        self.assertIn("https://youtu.be/abc123xyz", urls)
-        self.assertIn("https://www.youtube.com/watch?v=99999999999", urls)
+        self.assertIn("https://vimeo.com/76979871", urls)
+        self.assertIn("https://www.tiktok.com/@test/video/1234", urls)
+        self.assertIn("https://cdn.site.com/video.m3u8", urls)
 
     def test_queue_manager_add_and_counts(self):
         qm = DownloadQueueManager()

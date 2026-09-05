@@ -13,6 +13,7 @@ from core.downloader import (
     ProgressInfo,
     download_media,
 )
+from core.formats import detect_platform
 from core.history import add_to_history
 
 
@@ -24,6 +25,7 @@ class DownloadItem:
     quality: str = "best"
     save_dir: str = ""
     custom_name: str | None = None
+    platform: str = "Web"
     status: str = "pending"  # pending, downloading, completed, error, cancelled
     progress: ProgressInfo = field(default_factory=ProgressInfo)
     title: str = ""
@@ -68,12 +70,14 @@ class DownloadQueueManager:
         save_dir: str = "",
         custom_name: str | None = None,
     ) -> DownloadItem:
+        detected_plat = detect_platform(url)
         item = DownloadItem(
             url=url,
             output_format=output_format,
             quality=quality,
             save_dir=save_dir,
             custom_name=custom_name,
+            platform=detected_plat,
             title=custom_name or "Aguardando download...",
         )
         with self._lock:
@@ -97,6 +101,7 @@ class DownloadQueueManager:
                     output_format=output_format,
                     quality=quality,
                     save_dir=save_dir,
+                    platform=detect_platform(url),
                     title="Aguardando na fila...",
                 )
                 self.items.append(item)
