@@ -251,10 +251,25 @@ DYTB/
   - Converte automaticamente para o endpoint de embed correspondente ou extrai diretamente a URL do manifesto para o motor de download.
 - **Isolamento e Preservação de Plataformas**:
   - Todas as plataformas anteriores (YouTube, Vimeo, Instagram, TikTok, etc.) permanecem 100% operacionais e preservadas, sem efeitos colaterais.
-- **Diagnóstico EAD Passo a Passo**:
-  - Caso seja inserida uma URL de página de membros do Hotmart Club (SPA), o `ErrorDetailsDialog` exibe instruções objetivas para captura rápida do stream `.m3u8` via aba Rede do navegador (F12).
-- **Testes Unitários**:
-  - Suite expandida para **16 testes unitários** em `test_app.py`, todos passando com 100% de sucesso.
+- **Bateria de Testes Unitários Automatizados**:
+  - Expandida para **16 testes unitários** em `test_app.py`, validando detecção de plataformas, limpeza de URLs, injeção de cookies, fila assíncrona, extração de manifestos e tradução/formatação de erros. Todos os testes passam com 100% de sucesso.
+
+---
+
+### 13. Versão 1.1.0 - Navegador Sniffer EAD Integrado (Sem Tokens Chumbados)
+
+- **Lançamento Oficial da Versão v1.1.0**:
+  - Aumento da versão de `v1.0.0` para `v1.1.0` em toda a interface gráfica, diálogos, documentação e instalador.
+- **Navegador Sniffer EAD Integrado (`core/sniffer_process.py` e `core/sniffer_manager.py`)**:
+  - **Captura em Tempo Real**: Novo navegador embutido (*WebView2*) que permite ao usuário navegar diretamente em plataformas de cursos fechadas (Hotmart Club, DIO, Panda Video, Kiwify, Eduzz, etc.) utilizando seu **próprio login e sessão**.
+  - **Zero Tokens Chumbados**: O sistema não armazena nem fixa tokens ou IDs de usuários; cada aluno/usuário se conecta com suas próprias credenciais privadas.
+  - **HUD Flutuante com Interceptador de Rede (JS Sniffer)**: O navegador injeta um interceptador de requisições (`fetch`, `XMLHttpRequest`, `<video>`, `MediaSource`) e um painel flutuante Dark/Neon que detecta streams de vídeo no momento em que o usuário clica em **Play**.
+  - **Envio Direto para Download com 1 Clique**: Ao clicar em *"⬇ Enviar para Download no DYTB"*, o stream capturado é transmitido instantaneamente para a fila principal de downloads do aplicativo, montando o `.mp4` Full HD com o FFmpeg.
+- **Integração na Interface Principal**:
+  - Nova aba **"🌐 Sniffer EAD"** na barra de navegação inferior.
+  - Botão **"🌐 Abrir no Navegador Sniffer EAD"** direto no modal de diagnóstico de erros para links de cursos fechados.
+- **Empacotamento PyInstaller**:
+  - Suporte completo a execução do processo do sniffer embutido via flag `--run-sniffer-url` no binário executável portátil `DYTB.exe` (~97 MB).
 
 ---
 

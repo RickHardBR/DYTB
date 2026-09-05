@@ -411,10 +411,13 @@ class ErrorDetailsDialog(BaseDialog):
         platform: str = "",
         url: str = "",
         on_open_settings: callable = None,
+        on_open_sniffer: callable = None,
     ):
-        super().__init__(master, "Diagnóstico do Download", 560, 480)
+        super().__init__(master, "Diagnóstico do Download", 600, 500)
         self.raw_error = raw_error
         self.on_open_settings = on_open_settings
+        self.on_open_sniffer = on_open_sniffer
+        self.target_url = url
 
         # Cabeçalho: Título de Erro Amigável + Badge de Plataforma
         header_frame = ctk.CTkFrame(self, fg_color="transparent")
@@ -452,7 +455,7 @@ class ErrorDetailsDialog(BaseDialog):
             text_color="#cbd5e1",
             justify="left",
             anchor="w",
-            wraplength=500,
+            wraplength=540,
         )
         help_lbl.pack(padx=14, pady=12, fill="x")
 
@@ -486,7 +489,7 @@ class ErrorDetailsDialog(BaseDialog):
             fg_color="#09101a",
             text_color="#94a3b8",
             font=ctk.CTkFont(family="Consolas", size=10),
-            height=130,
+            height=120,
             corner_radius=6,
             border_width=1,
             border_color="#1e293b",
@@ -503,7 +506,7 @@ class ErrorDetailsDialog(BaseDialog):
             actions,
             text="Fechar",
             command=self.destroy,
-            width=110,
+            width=90,
             height=36,
             font=ctk.CTkFont(weight="bold"),
             fg_color="#334155",
@@ -511,7 +514,21 @@ class ErrorDetailsDialog(BaseDialog):
         )
         close_btn.pack(side="right")
 
-        if self.on_open_settings:
+        if self.on_open_sniffer:
+            sniffer_btn = ctk.CTkButton(
+                actions,
+                text="🌐 Abrir no Navegador Sniffer EAD",
+                command=self._open_sniffer_and_close,
+                width=240,
+                height=36,
+                font=ctk.CTkFont(weight="bold"),
+                fg_color="#06b6d4",
+                hover_color="#0891b2",
+                text_color="#04131d",
+            )
+            sniffer_btn.pack(side="right", padx=(0, 10))
+
+        elif self.on_open_settings:
             settings_btn = ctk.CTkButton(
                 actions,
                 text="⚙ Ajustar Cookies nas Configurações",
@@ -539,4 +556,9 @@ class ErrorDetailsDialog(BaseDialog):
         self.destroy()
         if self.on_open_settings:
             self.on_open_settings()
+
+    def _open_sniffer_and_close(self):
+        self.destroy()
+        if self.on_open_sniffer:
+            self.on_open_sniffer()
 

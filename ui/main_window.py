@@ -33,6 +33,7 @@ from core.settings import (
     get_use_custom_names,
     set_default_download_dir,
 )
+from core.sniffer_manager import SnifferManager
 from ui.about_dialog import AboutDialog
 from ui.dialogs import CustomNameDialog, ErrorDetailsDialog, ErrorDialog, InstallRequiredDialog
 from ui.history_window import HistoryWindow
@@ -60,6 +61,9 @@ class MainWindow:
         self.parent = parent
         self.last_download_path: str | None = None
         self.item_widgets: dict[str, dict] = {}
+
+        # Gerenciador do Navegador Sniffer EAD
+        self.sniffer_manager = SnifferManager(on_stream_captured=self._on_sniffer_stream_captured)
 
         # Gerenciador da Fila de Downloads
         self.queue_manager = DownloadQueueManager(
@@ -101,6 +105,20 @@ class MainWindow:
             hover=False,
         )
         tab_dl.pack(side="left", padx=8)
+
+        # Aba Sniffer EAD
+        tab_sniffer = ctk.CTkButton(
+            nav_inner,
+            text="🌐 Sniffer EAD",
+            width=115,
+            height=32,
+            fg_color="transparent",
+            hover_color="#131e2e",
+            text_color="#38bdf8",
+            font=ctk.CTkFont(size=13, weight="bold"),
+            command=self._open_sniffer,
+        )
+        tab_sniffer.pack(side="left", padx=8)
 
         # Aba Histórico
         tab_hist = ctk.CTkButton(
@@ -174,7 +192,7 @@ class MainWindow:
         # Versão à Direita
         version_lbl = ctk.CTkLabel(
             header_frame,
-            text="DYTB Downloader - v1.0.0",
+            text="DYTB Downloader - v1.1.0",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#64748b",
         )
@@ -834,6 +852,10 @@ class MainWindow:
         item = next((it for it in self.queue_manager.items if it.id == item_id), None)
         if not item:
             return
+        
+        is_ead = item.platform in ("Hotmart / EAD", "DIO", "Panda Video") or "m3u8" in (item.error_help or "")
+        on_sniffer = (lambda: self._open_sniffer(item.url)) if is_ead else None
+
         ErrorDetailsDialog(
             self.parent,
             title=item.error_title or "Erro no Download",
@@ -843,7 +865,24 @@ class MainWindow:
             platform=item.platform,
             url=item.url,
             on_open_settings=self._open_settings,
+            on_open_sniffer=on_sniffer,
         )
+
+    def _open_sniffer(self, target_url: str = ""):
+        current_input = target_url or self.url_entry.get().strip()
+        default_url = current_input if current_input.startswith("http") else "https://hotmart.com/"
+        self.sniffer_manager.launch(default_url)
+
+    def _on_sniffer_stream_captured(self, stream_url: str, title: str):
+        self.parent.after(0, lambda: self._handle_captured_stream(stream_url, title))
+
+    def _handle_captured_stream(self, stream_url: str, title: str):
+        self.url_entry.delete(0, "end")
+        self.url_entry.insert(0, stream_url)
+        fmt_key = self._get_format_key_from_label(self.format_var.get())
+        qual_key = self._get_quality_key_from_label(self.quality_var.get())
+        current_dest = get_default_download_dir()
+        self._enqueue_single_download(stream_url, fmt_key, qual_key, current_dest, custom_name=title or None)
 
     def _remove_single_widget(self, item_id: str):
         if item_id in self.item_widgets:

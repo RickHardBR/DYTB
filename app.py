@@ -28,6 +28,17 @@ def get_resource_path(relative_path: str) -> Path:
 
 
 def main() -> None:
+    # Caso especial: Processo em segundo plano do Sniffer EAD
+    if "--run-sniffer-url" in sys.argv:
+        try:
+            idx = sys.argv.index("--run-sniffer-url")
+            target_url = sys.argv[idx + 1] if idx + 1 < len(sys.argv) else "https://hotmart.com/"
+        except Exception:
+            target_url = "https://hotmart.com/"
+        from core.sniffer_process import run_sniffer
+        run_sniffer(target_url)
+        return
+
     # Limpa log anterior
     try:
         with open(STARTUP_LOG, "w", encoding="utf-8") as f:

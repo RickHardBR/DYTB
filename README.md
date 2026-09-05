@@ -4,12 +4,12 @@
 
 ![DYTB Downloader Banner](docs/screenshots/preview.jpg)
 
-**Uma ferramenta moderna, poderosa e intuitiva para download e conversão de vídeos e áudios do YouTube no Windows.**
+**Uma ferramenta moderna, poderosa e intuitiva para download e conversão de vídeos e áudios do YouTube, Vimeo, Instagram, TikTok, cursos EAD e streams HLS no Windows.**
 
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![UI](https://img.shields.io/badge/Interface-CustomTkinter-0284c7.svg)](https://github.com/TomSchimansky/CustomTkinter)
 [![Platform](https://img.shields.io/badge/Plataforma-Windows-0078d4.svg)](https://www.microsoft.com/windows)
-[![Release](https://img.shields.io/badge/Versão-1.0.0-emerald.svg)](https://github.com/RickHardBR/DYTB/releases)
+[![Release](https://img.shields.io/badge/Versão-1.1.0-emerald.svg)](https://github.com/RickHardBR/DYTB/releases)
 [![License](https://img.shields.io/badge/Licença-MIT-orange.svg)](LICENSE)
 
 </div>
@@ -18,6 +18,8 @@
 
 ## 🌟 Destaques e Funcionalidades
 
+- 🌐 **Suporte Multi-Plataforma**: YouTube, Vimeo (público e embed), TikTok, Instagram (Reels), Twitter/X, Facebook, Twitch, Dailymotion e plataformas de cursos EAD.
+- 🎯 **Navegador Sniffer EAD Integrado**: Navegue por aulas protegidas (Hotmart, DIO, Panda Video, Kiwify, Eduzz) conectado à sua própria conta e capture o vídeo com 1 clique ao dar Play!
 - 🎥 **Múltiplos Formatos de Vídeo**: Baixe vídeos em **MP4**, **WebM** e **MKV**.
 - 🎵 **Extração e Conversão de Áudio**: Salve faixas sonoras diretamente em **MP3 (qualidade máxima)**, **WAV** e **M4A**.
 - ⚙️ **Seleção de Resolução**: Suporte a qualidades desde **480p**, **720p HD** até **1080p Full HD** e Melhor Disponível.
