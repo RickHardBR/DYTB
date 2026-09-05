@@ -222,6 +222,28 @@ DYTB/
 
 ---
 
+### 11. Sistema Inteligente de Diagnóstico de Erros e Suporte Multi-Plataforma Avançado
+
+- **Resolução de Downloads no Vimeo e URLs Restritas**:
+  - Implementada conversão inteligente em `core/formats.py` para redirecionar links `vimeo.com/ID` para o player embed desimpedido `https://player.vimeo.com/video/ID` com cabeçalho `--referer "https://vimeo.com/"`, permitindo o download em alta definição de vídeos sem necessidade de login na interface web.
+  - Normalização automática de rotas do Instagram (`/reels/` -> `/reel/`), TikTok, Twitter/X, plataformas EAD (Hotmart, DIO, Panda Video) e streams diretos HLS (`.m3u8`) e DASH (`.mpd`).
+
+- **Gerenciamento Resiliente de Cookies e Fallback Automático**:
+  - Injeção flexível de autenticação via sessão de navegadores (Chrome, Edge, Firefox, Brave, Opera, Vivaldi) ou arquivo `cookies.txt`.
+  - Mecanismo de recuperação automática: caso o Windows bloqueie o SQLite de cookies por o navegador estar em execução (`Could not copy cookie database`), o motor tenta automaticamente o download direto sem cookies antes de reportar falha.
+
+- **Diagnóstico e Relatório de Erros Amigável (`ErrorDetailsDialog`)**:
+  - **Fim do Truncamento Feio**: O card de download não trunca mais mensagens com `...` no meio do texto técnico. Em vez disso, exibe um resumo claro e em Português do Brasil (ex: `✕ Exige autenticação / login`).
+  - **Botão [Ver Detalhes]**: Adicionado no card de download com falha, abrindo um modal completo no estilo Dark/Cyber Neon.
+  - **Diagnóstico Passo a Passo**: O modal apresenta o motivo real do erro (vídeo privado, login necessário, bloqueio de navegador, 404, etc.) e o passo a passo exato para o usuário resolver.
+  - **Caixa de Log Técnico com [Copiar Log]**: Permite copiar o log bruto do extrator com 1 clique para suporte ou depuração.
+  - **Atalho Direto para Configurações**: Botão `[⚙ Ajustar Cookies nas Configurações]` dentro do modal de erro para facilitar a configuração imediata.
+
+- **Bateria de Testes Unitários Automatizados**:
+  - Expandida para **15 testes unitários** em `test_app.py`, validando detecção de plataformas, limpeza de URLs, injeção de cookies, fila assíncrona e tradução/formatação de erros. Todos os testes passam com 100% de sucesso.
+
+---
+
 ## 🚀 Como Recompilar o Projeto
 
 Para gerar novamente as versões portátil e instalador após qualquer alteração:
@@ -234,4 +256,5 @@ O script executará automaticamente:
 1. Instalação/atualização de dependências.
 2. Compilação do executável portátil `DYTB.exe` com PyInstaller.
 3. Compilação do instalador `DYTB_Setup.exe` com Inno Setup.
+
 

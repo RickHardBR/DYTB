@@ -3,7 +3,12 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from core.downloader import build_ytdlp_command, parse_progress_line, sanitize_filename
+from core.downloader import (
+    build_ytdlp_command,
+    format_friendly_error,
+    parse_progress_line,
+    sanitize_filename,
+)
 from core.formats import (
     FORMAT_OPTIONS,
     QUALITY_OPTIONS,
@@ -49,7 +54,7 @@ class TestDYTB(unittest.TestCase):
 
         # Vimeo embed route
         vimeo_embed = "https://player.vimeo.com/video/76979871?h=abcdef"
-        self.assertEqual(clean_media_url(vimeo_embed), "https://vimeo.com/76979871?h=abcdef")
+        self.assertEqual(clean_media_url(vimeo_embed), "https://player.vimeo.com/video/76979871?h=abcdef")
 
     def test_browser_cookies_injection(self):
         set_browser_cookies("chrome")
@@ -86,7 +91,7 @@ class TestDYTB(unittest.TestCase):
         urls = extract_urls(text)
         self.assertEqual(len(urls), 4)
         self.assertIn("https://www.youtube.com/watch?v=0PkbdbJLfeM", urls)
-        self.assertIn("https://vimeo.com/76979871", urls)
+        self.assertIn("https://player.vimeo.com/video/76979871", urls)
         self.assertIn("https://www.tiktok.com/@test/video/1234", urls)
         self.assertIn("https://cdn.site.com/video.m3u8", urls)
 
@@ -204,6 +209,25 @@ class TestDYTB(unittest.TestCase):
 
         remove_from_history(0)
         self.assertEqual(len(load_history()), 0)
+
+    def test_friendly_error_formatting(self):
+        # Caso de login/conteúdo privado
+        login_err = "ERROR: [vimeo] 1222710784: The web client only works when logged-in. Use --cookies, --cookies-from-browser"
+        t, s, g = format_friendly_error(login_err, "Vimeo")
+        self.assertEqual(t, "Conteúdo Restrito / Exige Login")
+        self.assertIn("exige login", s)
+        self.assertIn("Configurações", g)
+
+        # Caso de banco de cookies travado
+        cookie_lock = "ERROR: Could not copy Chrome cookie database in C:/Users/... Permission denied"
+        t2, s2, g2 = format_friendly_error(cookie_lock)
+        self.assertEqual(t2, "Navegador Bloqueando Cookies")
+        self.assertIn("navegador está aberto", s2)
+
+        # Caso 404
+        not_found = "ERROR: [generic] HTTP Error 404: Not Found"
+        t3, s3, g3 = format_friendly_error(not_found, "Instagram")
+        self.assertEqual(t3, "Vídeo Não Encontrado")
 
 
 if __name__ == "__main__":

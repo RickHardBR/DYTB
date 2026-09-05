@@ -31,6 +31,10 @@ class DownloadItem:
     title: str = ""
     output_path: str | None = None
     error_message: str | None = None
+    error_title: str = ""
+    error_summary: str = ""
+    error_help: str = ""
+    raw_error: str = ""
     session: DownloadSession = field(default_factory=DownloadSession)
 
     @property
@@ -248,12 +252,22 @@ class DownloadQueueManager:
                 else:
                     next_item.status = "error"
                     next_item.error_message = str(exc)
-                    next_item.progress.status_text = "Erro no download"
+                    next_item.error_title = getattr(exc, "title", "Erro no Download")
+                    next_item.error_summary = getattr(exc, "summary", str(exc))
+                    next_item.error_help = getattr(exc, "help_text", "")
+                    next_item.raw_error = getattr(exc, "raw_error", str(exc))
+                    next_item.progress.status_text = next_item.error_summary
 
             except Exception as exc:
+                from core.downloader import format_friendly_error
+                title, summary, guide = format_friendly_error(str(exc), platform=next_item.platform)
                 next_item.status = "error"
                 next_item.error_message = str(exc)
-                next_item.progress.status_text = f"Erro: {exc}"
+                next_item.error_title = title
+                next_item.error_summary = summary
+                next_item.error_help = guide
+                next_item.raw_error = str(exc)
+                next_item.progress.status_text = summary
 
             self._notify_update(next_item)
 

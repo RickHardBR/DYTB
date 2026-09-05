@@ -34,7 +34,7 @@ from core.settings import (
     set_default_download_dir,
 )
 from ui.about_dialog import AboutDialog
-from ui.dialogs import CustomNameDialog, ErrorDialog, InstallRequiredDialog
+from ui.dialogs import CustomNameDialog, ErrorDetailsDialog, ErrorDialog, InstallRequiredDialog
 from ui.history_window import HistoryWindow
 from ui.settings_window import SettingsWindow
 
@@ -668,11 +668,28 @@ class MainWindow:
             )
             title_lbl.pack(side="left", fill="x", expand=True)
 
+            # Container de ações à direita (Detalhes + Ação Principal)
+            actions_frame = ctk.CTkFrame(top_row, fg_color="transparent")
+            actions_frame.pack(side="right")
+
+            details_btn = ctk.CTkButton(
+                actions_frame,
+                text="Ver Detalhes",
+                width=88,
+                height=24,
+                corner_radius=4,
+                fg_color="#1e293b",
+                hover_color="#0284c7",
+                text_color="#38bdf8",
+                font=ctk.CTkFont(size=11, weight="bold"),
+                command=lambda i_id=item.id: self._show_error_details(i_id),
+            )
+
             action_btn = ctk.CTkButton(
-                top_row,
+                actions_frame,
                 text="✕",
                 width=28,
-                height=22,
+                height=24,
                 corner_radius=4,
                 fg_color="#334155",
                 hover_color="#ef4444",
@@ -701,11 +718,13 @@ class MainWindow:
             status_lbl = ctk.CTkLabel(
                 bottom_row,
                 text="Aguardando...",
-                font=ctk.CTkFont(size=10),
+                font=ctk.CTkFont(size=11),
                 text_color="#94a3b8",
                 anchor="w",
+                wraplength=480,
+                justify="left",
             )
-            status_lbl.pack(side="left")
+            status_lbl.pack(side="left", fill="x", expand=True)
 
             metrics_lbl = ctk.CTkLabel(
                 bottom_row,
@@ -720,6 +739,7 @@ class MainWindow:
                 "card": item_card,
                 "title_lbl": title_lbl,
                 "action_btn": action_btn,
+                "details_btn": details_btn,
                 "p_bar": p_bar,
                 "status_lbl": status_lbl,
                 "metrics_lbl": metrics_lbl,
@@ -730,6 +750,7 @@ class MainWindow:
         w["title_lbl"].configure(text=item.display_name)
 
         if item.status == "downloading":
+            w["details_btn"].pack_forget()
             pct = max(0.0, min(1.0, item.progress.percent / 100.0)) if item.progress.percent else 0.05
             w["p_bar"].set(pct)
             w["p_bar"].configure(progress_color="#06b6d4")
@@ -753,6 +774,7 @@ class MainWindow:
             )
 
         elif item.status == "completed":
+            w["details_btn"].pack_forget()
             w["p_bar"].set(1.0)
             w["p_bar"].configure(progress_color="#10b981")
             w["status_lbl"].configure(text="✓ Concluído com sucesso", text_color="#10b981")
@@ -766,6 +788,7 @@ class MainWindow:
             )
 
         elif item.status == "cancelled":
+            w["details_btn"].pack_forget()
             w["p_bar"].configure(progress_color="#64748b")
             w["status_lbl"].configure(text="Download cancelado", text_color="#ef4444")
             w["metrics_lbl"].configure(text="")
@@ -779,11 +802,11 @@ class MainWindow:
 
         elif item.status == "error":
             w["p_bar"].configure(progress_color="#ef4444")
-            err_short = item.error_message or "Erro no download"
-            if len(err_short) > 50:
-                err_short = err_short[:47] + "..."
+            err_short = item.error_summary or item.error_message or "Falha no download"
             w["status_lbl"].configure(text=f"✕ {err_short}", text_color="#ef4444")
             w["metrics_lbl"].configure(text="")
+            
+            w["details_btn"].pack(side="left", padx=(0, 4))
             w["action_btn"].configure(
                 text="Remover",
                 width=75,
@@ -793,6 +816,7 @@ class MainWindow:
             )
 
         elif item.status == "pending":
+            w["details_btn"].pack_forget()
             w["p_bar"].set(0.0)
             w["status_lbl"].configure(text="Na fila de espera...", text_color="#94a3b8")
             w["metrics_lbl"].configure(text="")
@@ -805,6 +829,21 @@ class MainWindow:
             )
 
         self._update_queue_header_counts()
+
+    def _show_error_details(self, item_id: str):
+        item = next((it for it in self.queue_manager.items if it.id == item_id), None)
+        if not item:
+            return
+        ErrorDetailsDialog(
+            self.parent,
+            title=item.error_title or "Erro no Download",
+            summary=item.error_summary or item.error_message or "Falha ao processar download.",
+            help_text=item.error_help,
+            raw_error=item.raw_error or item.error_message or "",
+            platform=item.platform,
+            url=item.url,
+            on_open_settings=self._open_settings,
+        )
 
     def _remove_single_widget(self, item_id: str):
         if item_id in self.item_widgets:

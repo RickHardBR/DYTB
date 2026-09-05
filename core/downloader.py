@@ -25,7 +25,12 @@ from core.settings import get_browser_cookies, get_cookies_file, get_default_dow
 
 
 class DownloadError(RuntimeError):
-    pass
+    def __init__(self, message: str, title: str = "Erro no Download", summary: str = "", help_text: str = "", raw_error: str = ""):
+        super().__init__(message)
+        self.title = title
+        self.summary = summary or message
+        self.help_text = help_text
+        self.raw_error = raw_error or message
 
 
 @dataclass
@@ -95,6 +100,108 @@ def get_download_dir() -> str:
 def sanitize_filename(filename: str) -> str:
     """Remove caracteres ilegais para nomes de arquivos no Windows."""
     return re.sub(r'[\\/*?:"<>|]', "", filename).strip()
+
+
+def format_friendly_error(raw_error: str, platform: str = "") -> tuple[str, str, str]:
+    """
+    Analisa o log de erro retornado pelo yt-dlp/extrator e retorna uma tupla:
+    (titulo_amigavel, resumo_curto, guia_solucao_passo_a_passo)
+    """
+    err_lower = raw_error.lower()
+    plat_name = platform or "da plataforma"
+
+    # Caso 1: Login Obrigatório / Conteúdo Privado
+    if any(k in err_lower for k in ["only works when logged-in", "requires authentication", "empty media response", "login required", "account is private", "this video is private", "members-only", "sign in to confirm"]):
+        title = "Conteúdo Restrito / Exige Login"
+        summary = f"Este vídeo exige login ou permissão de acesso ({plat_name})."
+        guide = (
+            f"O vídeo informado está configurado como privado, restrito ou requer autenticação de usuário no {plat_name}.\n\n"
+            "Como resolver:\n"
+            "1. Clique no ícone de Configurações (⚙) no topo do DYTB.\n"
+            "2. No campo 'Cookies do Navegador', selecione o navegador onde você já está conectado à sua conta (ex: Chrome, Edge, Firefox).\n"
+            "3. Caso o seu navegador esteja aberto no Windows, feche-o antes de iniciar o download OU exporte um arquivo 'cookies.txt' e selecione-o em Configurações.\n"
+            "4. Tente realizar o download novamente."
+        )
+        return title, summary, guide
+
+    # Caso 2: Banco de Cookies Bloqueado pelo Navegador Aberto
+    if any(k in err_lower for k in ["could not copy", "cookie database", "permission denied", "cookie file is locked"]):
+        title = "Navegador Bloqueando Cookies"
+        summary = "O navegador está aberto e impedindo a leitura da sessão de login."
+        guide = (
+            "O navegador selecionado está em execução no Windows e bloqueou o acesso ao arquivo de cookies por segurança.\n\n"
+            "Como resolver:\n"
+            "1. Feche todas as janelas abertas do seu navegador (ex: Google Chrome / Edge) e clique para baixar novamente, OU\n"
+            "2. Instale uma extensão de exportação de cookies (como 'Get cookies.txt LOCALLY'), salve um arquivo 'cookies.txt' e importe-o em Configurações > Arquivo de Cookies."
+        )
+        return title, summary, guide
+
+    # Caso 3: Vídeo Não Encontrado / Removido / 404
+    if any(k in err_lower for k in ["video unavailable", "this video is unavailable", "http error 404", "not found", "is not available", "video has been removed", "404 not found"]):
+        title = "Vídeo Não Encontrado"
+        summary = "O vídeo não existe, foi excluído ou o link informado está incorreto."
+        guide = (
+            f"A plataforma ({plat_name}) informou que o conteúdo não foi localizado no endereço fornecido.\n\n"
+            "Como resolver:\n"
+            "1. Verifique se o link foi copiado por completo e sem caracteres extras.\n"
+            "2. Abra o link em uma janela anônima do navegador para verificar se o vídeo ainda está no ar publicamente."
+        )
+        return title, summary, guide
+
+    # Caso 4: Bloqueio 403 Forbidden / Anti-Bot / Rate Limit
+    if any(k in err_lower for k in ["http error 403", "forbidden", "bot detection", "cloudflare", "challenge"]):
+        title = "Acesso Bloqueado pela Plataforma (403)"
+        summary = f"Acesso temporariamente bloqueado pelo servidor do {plat_name}."
+        guide = (
+            f"O servidor do {plat_name} bloqueou a requisição direta por suspeita de automação ou limite de taxa.\n\n"
+            "Como resolver:\n"
+            "1. Configure os cookies do seu navegador nas Configurações para validar que você é um usuário real.\n"
+            "2. Aguarde 1 a 2 minutos antes de tentar novamente."
+        )
+        return title, summary, guide
+
+    # Caso 5: FFmpeg Ausente
+    if "ffmpeg" in err_lower and ("not found" in err_lower or "necessário" in err_lower or "missing" in err_lower):
+        title = "FFmpeg Não Encontrado"
+        summary = "O FFmpeg é necessário para converter ou mesclar o arquivo."
+        guide = (
+            "O aplicativo necessita do utilitário FFmpeg para extrair faixas de áudio (MP3/WAV/M4A) e combinar vídeos de alta definição.\n\n"
+            "Como resolver:\n"
+            "1. Execute o instalador oficial do aplicativo ('DYTB_Setup.exe') que configura o FFmpeg automaticamente, ou\n"
+            "2. Instale manualmente via terminal com o comando: winget install Gyan.FFmpeg"
+        )
+        return title, summary, guide
+
+    # Caso 6: Erro de Rede / Conexão / Timeout
+    if any(k in err_lower for k in ["timed out", "connection refused", "network is unreachable", "getaddrinfo failed", "sslerror", "winerror 10060"]):
+        title = "Falha de Conexão com a Internet"
+        summary = "Não foi possível estabelecer contato com os servidores da plataforma."
+        guide = (
+            "Ocorreu uma falha de comunicação de rede durante a transferência.\n\n"
+            "Como resolver:\n"
+            "1. Verifique se a sua conexão com a internet está ativa e estável.\n"
+            "2. Verifique se programas de firewall ou antivírus estão restringindo o tráfego do aplicativo."
+        )
+        return title, summary, guide
+
+    # Caso Padrão Genérico
+    # Extrai primeira linha limpa de erro
+    clean_lines = [line.replace("ERROR:", "").replace("error:", "").strip() for line in raw_error.splitlines() if line.strip()]
+    first_meaningful = clean_lines[0] if clean_lines else "Falha ao processar o download"
+    if len(first_meaningful) > 90:
+        first_meaningful = first_meaningful[:87] + "..."
+
+    title = "Erro no Processamento"
+    summary = first_meaningful
+    guide = (
+        f"Não foi possível concluir o download com os parâmetros fornecidos.\n\n"
+        "Detalhes da resposta do extrator:\n"
+        f"{raw_error}\n\n"
+        "Recomendações:\n"
+        "• Verifique se o formato e a qualidade escolhidos são compatíveis com o vídeo.\n"
+        "• Caso o conteúdo seja de um curso fechado ou plataforma privada, ative os Cookies do Navegador em Configurações."
+    )
+    return title, summary, guide
 
 
 def build_ytdlp_command(
@@ -187,7 +294,9 @@ def build_ytdlp_command(
         if not has_ffmpeg:
             raise DownloadError(
                 "O FFmpeg é necessário para extrair áudio nos formatos MP3/WAV/M4A. "
-                "Instale o FFmpeg ou execute o instalador do aplicativo."
+                "Instale o FFmpeg ou execute o instalador do aplicativo.",
+                title="FFmpeg Ausente",
+                summary="FFmpeg não encontrado para extrair áudio.",
             )
         cmd.append("--extract-audio")
         if target_fmt == "mp3":
@@ -259,10 +368,26 @@ def run_download(
     save_dir: str | None = None,
     session: DownloadSession | None = None,
 ) -> str:
-    # Tentativas com fallbacks automáticos
+    ensure_yt_dlp_available()
+
+    if session is not None:
+        session.reset()
+
+    detected_plat = detect_platform(url)
     disable_cookies_fallback = False
+    last_raw_error = ""
+
     for attempt_index in range(1, 4):
-        fallback_yt = attempt_index == 2
+        fallback_yt = attempt_index == 2 and detected_plat == "YouTube"
+
+        if on_progress is not None:
+            if attempt_index == 1:
+                on_progress(ProgressInfo(percent=1.0, status_text="Conectando e obtendo dados do vídeo..."))
+            elif disable_cookies_fallback:
+                on_progress(ProgressInfo(percent=2.0, status_text="Tentando download direto sem cookies..."))
+            elif fallback_yt:
+                on_progress(ProgressInfo(percent=3.0, status_text="Tentando método alternativo de conexão..."))
+
         cmd = build_ytdlp_command(
             url=url,
             output_format=output_format,
@@ -302,10 +427,10 @@ def run_download(
         while True:
             if session is not None and session.cancel_requested:
                 session._kill_process()
-                raise DownloadError("Download cancelado pelo usuário.")
+                raise DownloadError("Download cancelado pelo usuário.", title="Cancelado", summary="Download cancelado pelo usuário.")
             if session is not None and session.pause_requested:
                 session._kill_process()
-                raise DownloadError("Download pausado pelo usuário.")
+                raise DownloadError("Download pausado pelo usuário.", title="Pausado", summary="Download pausado pelo usuário.")
 
             if process.stdout is None:
                 break
@@ -343,36 +468,38 @@ def run_download(
             resolved = _resolve_downloaded_file(output_format, save_dir)
             if resolved:
                 return resolved
-            raise DownloadError("O download foi concluído, mas o arquivo final não pôde ser localizado.")
+            raise DownloadError(
+                "O download foi concluído, mas o arquivo final não pôde ser localizado.",
+                title="Arquivo Não Localizado",
+                summary="Download concluído mas arquivo final não encontrado.",
+            )
 
-        recent_output = "\n".join(output_lines[-10:])
-        
+        recent_output = "\n".join(output_lines[-12:]) if output_lines else "Nenhum log gerado pelo extrator."
+        last_raw_error = recent_output
+
         # Se falhou por banco de cookies bloqueado pelo navegador aberto, tenta novamente sem cookies
-        if "Could not copy" in recent_output and "cookie database" in recent_output:
+        if ("Could not copy" in recent_output and "cookie database" in recent_output) or ("only works when logged-in" in recent_output.lower() and detected_plat == "Vimeo"):
             if not disable_cookies_fallback:
                 disable_cookies_fallback = True
                 continue
 
+        # Se o YouTube pediu reload de player client
         if "The page needs to be reloaded" in recent_output or "player_client" in recent_output.lower():
             if attempt_index == 1:
                 continue
 
-        if "only works when logged-in" in recent_output.lower() or "empty media response" in recent_output.lower() or "requires authentication" in recent_output.lower():
-            raise DownloadError(
-                "Este conteúdo exige login/autenticação.\n\n"
-                "• Se você usa o Chrome, feche suas janelas antes de iniciar para liberar os cookies, ou\n"
-                "• Selecione outro navegador (Edge/Firefox) ou importe um 'cookies.txt' em Configurações."
-            )
+        # Se não for possível recuperar por fallback automático, interrompe e diagnostica
+        break
 
-        if "UNSUPPORTED_URL" in recent_output or "unable to download webpage" in recent_output.lower():
-            raise DownloadError("Não foi possível acessar o link. Verifique se a URL está correta e se o vídeo está disponível.")
-        if "ffmpeg" in recent_output.lower() and "not found" in recent_output.lower():
-            raise DownloadError("O FFmpeg não foi encontrado. Instale-o para converter e mesclar vídeos/áudios.")
-        raise DownloadError(f"Erro ao baixar o conteúdo:\n\n{recent_output}")
-
-    raise DownloadError("Não foi possível concluir o download após tentar métodos alternativos.")
-
-
+    # Diagnóstico amigável e detalhado do erro
+    title, summary, guide = format_friendly_error(last_raw_error, platform=detected_plat)
+    raise DownloadError(
+        message=summary,
+        title=title,
+        summary=summary,
+        help_text=guide,
+        raw_error=last_raw_error,
+    )
 
 
 PROGRESS_PERCENT_REGEX = re.compile(r"(\d+(?:\.\d+)?)%")
@@ -442,124 +569,6 @@ def parse_progress_line(line: str) -> ProgressInfo:
     return info
 
 
-def run_download(
-    url: str,
-    output_format: str,
-    quality: str = "best",
-    custom_name: str | None = None,
-    on_progress: Callable[[ProgressInfo], None] | None = None,
-    save_dir: str | None = None,
-    session: DownloadSession | None = None,
-) -> str:
-    ensure_yt_dlp_available()
-
-    if session is not None:
-        session.reset()
-
-    commands = [
-        build_ytdlp_command(
-            url, output_format, quality=quality, custom_name=custom_name, fallback_youtube_client=False, save_dir=save_dir
-        ),
-        build_ytdlp_command(
-            url, output_format, quality=quality, custom_name=custom_name, fallback_youtube_client=True, save_dir=save_dir
-        ),
-    ]
-
-    last_recorded_path: str | None = None
-
-    for attempt_index, cmd in enumerate(commands, start=1):
-        if on_progress is not None:
-            if attempt_index == 2:
-                on_progress(ProgressInfo(percent=5.0, status_text="Tentando método alternativo de conexão com o YouTube..."))
-            else:
-                on_progress(ProgressInfo(percent=1.0, status_text="Conectando e obtendo dados do vídeo..."))
-
-        startupinfo = None
-        creationflags = 0
-        if os.name == "nt":
-            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
-            startupinfo = subprocess.STARTUPINFO()
-            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
-            startupinfo.wShowWindow = subprocess.SW_HIDE
-
-        process = subprocess.Popen(
-            cmd,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
-            shell=False,
-            startupinfo=startupinfo,
-            creationflags=creationflags,
-        )
-
-        if session is not None:
-            session.process = process
-
-        output_lines: list[str] = []
-        while True:
-            if session is not None and session.cancel_requested:
-                session._kill_process()
-                raise DownloadError("Download cancelado pelo usuário.")
-            if session is not None and session.pause_requested:
-                session._kill_process()
-                raise DownloadError("Download pausado pelo usuário.")
-
-            if process.stdout is None:
-                break
-            line = process.stdout.readline()
-            if not line and process.poll() is not None:
-                break
-            if line:
-                line = line.strip()
-                if line:
-                    output_lines.append(line)
-                    # Verifica se a linha é um caminho de arquivo final emitido pelo --print after_move:filepath
-                    if os.path.isabs(line) and os.path.exists(line):
-                        last_recorded_path = line
-                    elif "[download] Destination:" in line:
-                        candidate = line.split("[download] Destination:", 1)[1].strip()
-                        if os.path.exists(candidate):
-                            last_recorded_path = candidate
-                    elif "[Merger] Merging formats into" in line:
-                        candidate = line.split("Merging formats into", 1)[1].strip().strip('"\'')
-                        if os.path.exists(candidate):
-                            last_recorded_path = candidate
-                    elif "[ExtractAudio] Destination:" in line:
-                        candidate = line.split("[ExtractAudio] Destination:", 1)[1].strip()
-                        if os.path.exists(candidate):
-                            last_recorded_path = candidate
-
-                    if on_progress is not None:
-                        prog_info = parse_progress_line(line)
-                        on_progress(prog_info)
-
-        returncode = process.wait()
-        if returncode == 0:
-            if last_recorded_path and os.path.exists(last_recorded_path):
-                return last_recorded_path
-            
-            resolved = _resolve_downloaded_file(output_format, save_dir)
-            if resolved:
-                return resolved
-            raise DownloadError("O download foi concluído, mas o arquivo final não pôde ser localizado.")
-
-        recent_output = "\n".join(output_lines[-10:])
-        if "The page needs to be reloaded" in recent_output or "player_client" in recent_output.lower():
-            if attempt_index == 1:
-                continue
-
-        if "UNSUPPORTED_URL" in recent_output or "unable to download webpage" in recent_output.lower():
-            raise DownloadError("Não foi possível acessar o link. Verifique se a URL está correta e se o vídeo está público.")
-        if "ffmpeg" in recent_output.lower() and "not found" in recent_output.lower():
-            raise DownloadError("O FFmpeg não foi encontrado. Instale-o para converter e mesclar vídeos/áudios.")
-        raise DownloadError(f"Erro ao baixar o conteúdo:\n\n{recent_output}")
-
-    raise DownloadError("Não foi possível concluir o download após tentar métodos alternativos.")
-
-
 def _resolve_downloaded_file(output_format: str, save_dir: str | None = None) -> str | None:
     download_dir = save_dir or get_download_dir()
     if not os.path.exists(download_dir):
@@ -597,6 +606,12 @@ def download_media(
             session=session,
         )
     except FileNotFoundError as exc:
-        raise DownloadError("O executável yt-dlp não foi encontrado. Verifique a instalação.") from exc
+        raise DownloadError(
+            "O executável yt-dlp não foi encontrado. Verifique a instalação.",
+            title="yt-dlp Ausente",
+            summary="O executável yt-dlp não foi encontrado.",
+        ) from exc
     except RuntimeError as exc:
+        if isinstance(exc, DownloadError):
+            raise exc
         raise DownloadError(str(exc)) from exc

@@ -398,3 +398,145 @@ class CustomNameDialog(BaseDialog):
     def _cancel(self):
         self.destroy()
         self.on_cancel()
+
+
+class ErrorDetailsDialog(BaseDialog):
+    def __init__(
+        self,
+        master,
+        title: str,
+        summary: str,
+        help_text: str,
+        raw_error: str,
+        platform: str = "",
+        url: str = "",
+        on_open_settings: callable = None,
+    ):
+        super().__init__(master, "Diagnóstico do Download", 560, 480)
+        self.raw_error = raw_error
+        self.on_open_settings = on_open_settings
+
+        # Cabeçalho: Título de Erro Amigável + Badge de Plataforma
+        header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        header_frame.pack(fill="x", padx=20, pady=(18, 10))
+
+        title_lbl = ctk.CTkLabel(
+            header_frame,
+            text=f"✕  {title}",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color="#f87171",
+            anchor="w",
+        )
+        title_lbl.pack(side="left", fill="x", expand=True)
+
+        if platform:
+            plat_badge = ctk.CTkLabel(
+                header_frame,
+                text=f" {platform} ",
+                font=ctk.CTkFont(size=10, weight="bold"),
+                text_color="#38bdf8",
+                fg_color="#1e293b",
+                corner_radius=4,
+            )
+            plat_badge.pack(side="right", padx=(8, 0))
+
+        # Caixa com Guia de Resolução em Português
+        help_frame = ctk.CTkFrame(self, fg_color="#131e2e", corner_radius=8, border_color="#1e293b", border_width=1)
+        help_frame.pack(fill="x", padx=20, pady=(0, 12))
+
+        guide_content = help_text or summary or "Nenhuma instrução adicional disponível para este erro."
+        help_lbl = ctk.CTkLabel(
+            help_frame,
+            text=guide_content,
+            font=ctk.CTkFont(size=12),
+            text_color="#cbd5e1",
+            justify="left",
+            anchor="w",
+            wraplength=500,
+        )
+        help_lbl.pack(padx=14, pady=12, fill="x")
+
+        # Seção de Log Técnico
+        log_header = ctk.CTkFrame(self, fg_color="transparent")
+        log_header.pack(fill="x", padx=20, pady=(0, 4))
+
+        log_title = ctk.CTkLabel(
+            log_header,
+            text="Detalhes Técnicos / Log:",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#94a3b8",
+            anchor="w",
+        )
+        log_title.pack(side="left")
+
+        self.copy_btn = ctk.CTkButton(
+            log_header,
+            text="Copiar Log",
+            font=ctk.CTkFont(size=11),
+            width=90,
+            height=24,
+            fg_color="#1e293b",
+            hover_color="#334155",
+            command=self._copy_log,
+        )
+        self.copy_btn.pack(side="right")
+
+        log_textbox = ctk.CTkTextbox(
+            self,
+            fg_color="#09101a",
+            text_color="#94a3b8",
+            font=ctk.CTkFont(family="Consolas", size=10),
+            height=130,
+            corner_radius=6,
+            border_width=1,
+            border_color="#1e293b",
+        )
+        log_textbox.pack(fill="both", expand=True, padx=20, pady=(0, 14))
+        log_textbox.insert("1.0", self.raw_error or summary or "Sem dados brutos de log.")
+        log_textbox.configure(state="disabled")
+
+        # Barra de Ações Inferior
+        actions = ctk.CTkFrame(self, fg_color="transparent")
+        actions.pack(fill="x", padx=20, pady=(0, 16))
+
+        close_btn = ctk.CTkButton(
+            actions,
+            text="Fechar",
+            command=self.destroy,
+            width=110,
+            height=36,
+            font=ctk.CTkFont(weight="bold"),
+            fg_color="#334155",
+            hover_color="#475569",
+        )
+        close_btn.pack(side="right")
+
+        if self.on_open_settings:
+            settings_btn = ctk.CTkButton(
+                actions,
+                text="⚙ Ajustar Cookies nas Configurações",
+                command=self._open_settings_and_close,
+                width=240,
+                height=36,
+                font=ctk.CTkFont(weight="bold"),
+                fg_color="#0284c7",
+                hover_color="#0369a1",
+            )
+            settings_btn.pack(side="right", padx=(0, 10))
+
+        self.center_on_parent()
+
+    def _copy_log(self):
+        try:
+            self.clipboard_clear()
+            self.clipboard_append(self.raw_error)
+            self.copy_btn.configure(text="Copiado!", fg_color="#16a34a")
+            self.after(2000, lambda: self.copy_btn.configure(text="Copiar Log", fg_color="#1e293b"))
+        except Exception:
+            pass
+
+    def _open_settings_and_close(self):
+        self.destroy()
+        if self.on_open_settings:
+            self.on_open_settings()
+

@@ -151,15 +151,14 @@ def clean_media_url(url: str) -> str:
         return cleaned
 
     if platform == "Vimeo":
-        # Normaliza player embeds (player.vimeo.com/video/ID -> vimeo.com/ID)
-        player_match = re.search(r"player\.vimeo\.com/video/(\d+)", cleaned)
-        if player_match:
-            video_id = player_match.group(1)
-            # Preserva hash de privacidade se existir (?h=...)
+        # Extrai ID do Vimeo e normaliza para o endpoint embed desimpedido
+        vimeo_id_match = re.search(r"(?:vimeo\.com/(?:video/)?|player\.vimeo\.com/video/)(\d+)", cleaned)
+        if vimeo_id_match:
+            video_id = vimeo_id_match.group(1)
             h_match = re.search(r"[?&]h=([a-zA-Z0-9]+)", cleaned)
             if h_match:
-                return f"https://vimeo.com/{video_id}?h={h_match.group(1)}"
-            return f"https://vimeo.com/{video_id}"
+                return f"https://player.vimeo.com/video/{video_id}?h={h_match.group(1)}"
+            return f"https://player.vimeo.com/video/{video_id}"
         return cleaned
 
     if platform in ("TikTok", "Twitter / X", "Facebook"):
