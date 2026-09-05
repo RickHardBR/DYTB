@@ -5,7 +5,7 @@ datas = [('DW.ico', '.'), ('codeline.png', '.'), ('bin', 'bin')]
 binaries = []
 hiddenimports = []
 
-for pkg in ['customtkinter', 'darkdetect', 'webview']:
+for pkg in ['customtkinter', 'darkdetect']:
     tmp_ret = collect_all(pkg)
     datas += tmp_ret[0]
     binaries += tmp_ret[1]
@@ -21,7 +21,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=['webview', 'pythonnet', 'clr_loader'],
     noarchive=False,
     optimize=0,
 )
