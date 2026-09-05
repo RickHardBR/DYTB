@@ -161,6 +161,25 @@ A interface foi reformulada para seguir a identidade visual moderna da **Imagem 
 
 ---
 
+### 11. Autenticação por Sessão do Navegador (Cookies) para Vídeos Privados & Normalização de Rotas
+- **Download de Vídeos Privados e Cursos Logados (`core/settings.py` e `core/downloader.py`):**
+  - Implementação do suporte a injeção de cookies de sessão ativa de navegadores (`--cookies-from-browser`):
+    - Opções suportadas: Google Chrome, Microsoft Edge, Mozilla Firefox, Brave Browser e Opera.
+    - Permite baixar Reels de contas privadas seguidas no Instagram, vídeos protegidos por idade no YouTube e aulas de cursos EAD autenticados (Hotmart, DIO, etc.).
+- **Normalização Avançada de Rotas e Embeds (`core/formats.py`):**
+  - Instagram: correção e redirecionamento de rotas plurais (`/reels/ID` -> `/reel/ID`) e `/tv/ID` -> `/reel/ID`.
+  - Vimeo: normalização de URLs de player embutido (`player.vimeo.com/video/ID` -> `vimeo.com/ID`) com preservação de hash de privacidade (`?h=...`).
+  - Redes Sociais: remoção completa de parâmetros de tracking de link compartilhado (`igsh`, `si`, `fbclid`, `utm_*`).
+- **Resiliência e Fallbacks de Formatos no Pipeline (`core/downloader.py`):**
+  - Implementação do seletor resiliente de formato (`bestvideo*+bestaudio/best`) garantindo que fluxos únicos progressivos de vídeo (comuns no Vimeo, Instagram e TikTok) não falhem ao procurar trilhas de áudio/vídeo separadas.
+  - Injeção automática de cabeçalhos `Referer` (`https://vimeo.com/`) e `User-Agent` de navegador desktop.
+- **Configurações com Seletor de Autenticação (`ui/settings_window.py`):**
+  - Novo seletor intuitivo na janela de Configurações para escolher o navegador utilizado nas sessões logadas.
+- **Testes Automatizados (`test_app.py`):**
+  - 14 testes unitários cobrindo injeção de cookies e normalizações com 100% de sucesso.
+
+---
+
 ## 📁 Estrutura Atual dos Arquivos do Projeto
 
 ```text

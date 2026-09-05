@@ -18,6 +18,7 @@ from core.formats import (
 )
 from core.history import add_to_history, clear_history, load_history, remove_from_history
 from core.queue_manager import DownloadItem, DownloadQueueManager
+from core.settings import get_browser_cookies, set_browser_cookies
 
 
 class TestDYTB(unittest.TestCase):
@@ -40,6 +41,24 @@ class TestDYTB(unittest.TestCase):
         self.assertEqual(detect_platform("https://cdn.example.com/live/index.m3u8"), "HLS Stream (.m3u8)")
         self.assertEqual(detect_platform("https://cdn.example.com/live/manifest.mpd"), "DASH Stream (.mpd)")
         self.assertEqual(detect_platform("https://example.com/video.mp4"), "Vídeo Direto")
+
+    def test_clean_instagram_and_vimeo_url(self):
+        # Instagram plural route /reels/
+        insta_plural = "https://www.instagram.com/reels/DcWKgodRBLd/?igsh=MWF5..."
+        self.assertEqual(clean_media_url(insta_plural), "https://www.instagram.com/reel/DcWKgodRBLd/")
+
+        # Vimeo embed route
+        vimeo_embed = "https://player.vimeo.com/video/76979871?h=abcdef"
+        self.assertEqual(clean_media_url(vimeo_embed), "https://vimeo.com/76979871?h=abcdef")
+
+    def test_browser_cookies_injection(self):
+        set_browser_cookies("chrome")
+        self.assertEqual(get_browser_cookies(), "chrome")
+        cmd = build_ytdlp_command("https://vimeo.com/76979871", "mp4")
+        self.assertIn("--cookies-from-browser", cmd)
+        self.assertIn("chrome", cmd)
+        self.assertIn("--referer", cmd)
+        set_browser_cookies("none")
 
     def test_clean_youtube_url(self):
         # Link com rádio/mix fornecido pelo usuário

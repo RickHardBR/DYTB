@@ -21,7 +21,7 @@ from core.formats import (
     validate_url,
 )
 from core.installer import _refresh_system_path, ensure_yt_dlp_available
-from core.settings import get_default_download_dir
+from core.settings import get_browser_cookies, get_default_download_dir
 
 
 class DownloadError(RuntimeError):
@@ -144,6 +144,8 @@ def build_ytdlp_command(
         "5",
         "--fragment-retries",
         "10",
+        "--no-check-certificates",
+        "--geo-bypass",
         "--user-agent",
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
         "--compat-options",
@@ -153,6 +155,17 @@ def build_ytdlp_command(
         "--print",
         "after_move:filepath",
     ]
+
+    # Injeção de Cookies do Navegador (para vídeos privados, Instagram, Hotmart, etc.)
+    browser_cookie = get_browser_cookies()
+    if browser_cookie and browser_cookie != "none":
+        cmd.extend(["--cookies-from-browser", browser_cookie])
+
+    # Referer para plataformas com restrição de domínio / embed
+    if platform == "Vimeo":
+        cmd.extend(["--referer", "https://vimeo.com/"])
+    elif platform in ("Hotmart / EAD", "DIO", "Panda Video"):
+        cmd.extend(["--referer", clean_url])
 
     if ffmpeg_bin:
         cmd.extend(["--ffmpeg-location", os.path.dirname(ffmpeg_bin)])
@@ -179,7 +192,7 @@ def build_ytdlp_command(
         elif target_fmt == "m4a":
             cmd.extend(["--audio-format", "m4a"])
     else:
-        # Formatos de Vídeo: mp4, webm, mkv
+        # Formatos de Vídeo: mp4, webm, mkv com seleção resiliente
         height_limit = QUALITY_OPTIONS.get(quality, {}).get("height")
         
         if target_fmt == "mp4":
@@ -187,10 +200,12 @@ def build_ytdlp_command(
                 fmt_str = (
                     f"bestvideo[height<={height_limit}][ext=mp4]+bestaudio[ext=m4a]/"
                     f"bestvideo[height<={height_limit}]+bestaudio/"
-                    f"best[height<={height_limit}][ext=mp4]/best[height<={height_limit}]/best"
+                    f"best[height<={height_limit}][ext=mp4]/"
+                    f"best[height<={height_limit}]/"
+                    f"best"
                 )
             else:
-                fmt_str = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo+bestaudio/best[ext=mp4]/best"
+                fmt_str = "bestvideo[ext=mp4]+bestaudio[ext=m4a]/bestvideo*+bestaudio/best[ext=mp4]/best"
             
             cmd.extend(["-f", fmt_str])
             if has_ffmpeg:
@@ -201,10 +216,12 @@ def build_ytdlp_command(
                 fmt_str = (
                     f"bestvideo[height<={height_limit}][ext=webm]+bestaudio[ext=webm]/"
                     f"bestvideo[height<={height_limit}]+bestaudio/"
-                    f"best[height<={height_limit}][ext=webm]/best[height<={height_limit}]/best"
+                    f"best[height<={height_limit}][ext=webm]/"
+                    f"best[height<={height_limit}]/"
+                    f"best"
                 )
             else:
-                fmt_str = "bestvideo[ext=webm]+bestaudio[ext=webm]/bestvideo+bestaudio/best[ext=webm]/best"
+                fmt_str = "bestvideo[ext=webm]+bestaudio[ext=webm]/bestvideo*+bestaudio/best[ext=webm]/best"
             
             cmd.extend(["-f", fmt_str])
             if has_ffmpeg:
@@ -214,10 +231,11 @@ def build_ytdlp_command(
             if height_limit:
                 fmt_str = (
                     f"bestvideo[height<={height_limit}]+bestaudio/"
-                    f"best[height<={height_limit}]/best"
+                    f"best[height<={height_limit}]/"
+                    f"best"
                 )
             else:
-                fmt_str = "bestvideo+bestaudio/best"
+                fmt_str = "bestvideo*+bestaudio/best"
             
             cmd.extend(["-f", fmt_str])
             if has_ffmpeg:
@@ -225,6 +243,7 @@ def build_ytdlp_command(
 
     cmd.append(clean_url)
     return cmd
+
 
 
 PROGRESS_PERCENT_REGEX = re.compile(r"(\d+(?:\.\d+)?)%")

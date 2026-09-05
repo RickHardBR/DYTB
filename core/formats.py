@@ -130,7 +130,7 @@ def clean_youtube_url(url: str) -> str:
 
 
 def clean_media_url(url: str) -> str:
-    """Sanitiza URLs de diversas plataformas, removendo parâmetros de tracking mas preservando autenticação de streams."""
+    """Sanitiza e normaliza URLs de diversas plataformas, corrigindo rotas (/reels/ -> /reel/) e removendo tracking."""
     if not url:
         return ""
     
@@ -140,14 +140,36 @@ def clean_media_url(url: str) -> str:
     if platform == "YouTube":
         return clean_youtube_url(cleaned)
 
-    if platform in ("TikTok", "Instagram", "Twitter / X"):
-        # Remove parâmetros de tracking comuns em redes sociais
+    if platform == "Instagram":
+        # Remove tracking do Instagram
+        cleaned = re.sub(r"([?&])(igsh|utm_[^&=]+|si|s|t|fbclid)=[^&]*", "", cleaned)
+        cleaned = re.sub(r"\?&", "?", cleaned)
+        cleaned = re.sub(r"[?&]$", "", cleaned)
+        # Normaliza rota de reels no plural (/reels/ID -> /reel/ID)
+        cleaned = re.sub(r"instagram\.com/reels/([a-zA-Z0-9_-]+)", r"instagram.com/reel/\1", cleaned, flags=re.IGNORECASE)
+        cleaned = re.sub(r"instagram\.com/tv/([a-zA-Z0-9_-]+)", r"instagram.com/reel/\1", cleaned, flags=re.IGNORECASE)
+        return cleaned
+
+    if platform == "Vimeo":
+        # Normaliza player embeds (player.vimeo.com/video/ID -> vimeo.com/ID)
+        player_match = re.search(r"player\.vimeo\.com/video/(\d+)", cleaned)
+        if player_match:
+            video_id = player_match.group(1)
+            # Preserva hash de privacidade se existir (?h=...)
+            h_match = re.search(r"[?&]h=([a-zA-Z0-9]+)", cleaned)
+            if h_match:
+                return f"https://vimeo.com/{video_id}?h={h_match.group(1)}"
+            return f"https://vimeo.com/{video_id}"
+        return cleaned
+
+    if platform in ("TikTok", "Twitter / X", "Facebook"):
         cleaned = re.sub(r"([?&])(igsh|utm_[^&=]+|si|s|t|fbclid)=[^&]*", "", cleaned)
         cleaned = re.sub(r"\?&", "?", cleaned)
         cleaned = re.sub(r"[?&]$", "", cleaned)
         return cleaned
 
     return cleaned
+
 
 
 def extract_urls(text: str) -> list[str]:

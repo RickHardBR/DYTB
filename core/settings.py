@@ -112,3 +112,15 @@ def set_auto_open_folder(enabled: bool) -> None:
     settings["auto_open_folder"] = enabled
     save_settings(settings)
 
+
+def get_browser_cookies() -> str:
+    """Retorna o navegador selecionado para autenticação em vídeos privados ('none', 'chrome', 'edge', 'firefox', 'brave', 'opera')."""
+    return load_settings().get("browser_cookies", "none")
+
+
+def set_browser_cookies(browser: str) -> None:
+    settings = load_settings()
+    settings["browser_cookies"] = browser
+    save_settings(settings)
+
+
