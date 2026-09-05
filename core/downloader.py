@@ -21,7 +21,7 @@ from core.formats import (
     validate_url,
 )
 from core.installer import _refresh_system_path, ensure_yt_dlp_available
-from core.settings import get_browser_cookies, get_default_download_dir
+from core.settings import get_browser_cookies, get_cookies_file, get_default_download_dir
 
 
 class DownloadError(RuntimeError):
@@ -104,6 +104,7 @@ def build_ytdlp_command(
     custom_name: str | None = None,
     fallback_youtube_client: bool = False,
     save_dir: str | None = None,
+    disable_browser_cookies: bool = False,
 ) -> list[str]:
     if not validate_media_url(url):
         raise DownloadError("URL inválida. Cole um link válido de vídeo, plataforma ou stream.")
@@ -156,10 +157,14 @@ def build_ytdlp_command(
         "after_move:filepath",
     ]
 
-    # Injeção de Cookies do Navegador (para vídeos privados, Instagram, Hotmart, etc.)
-    browser_cookie = get_browser_cookies()
-    if browser_cookie and browser_cookie != "none":
-        cmd.extend(["--cookies-from-browser", browser_cookie])
+    # Injeção de Cookies (Prioridade: Arquivo cookies.txt > Sessão de Navegador)
+    cookies_file = get_cookies_file()
+    if cookies_file and os.path.exists(cookies_file):
+        cmd.extend(["--cookies", cookies_file])
+    elif not disable_browser_cookies:
+        browser_cookie = get_browser_cookies()
+        if browser_cookie and browser_cookie != "none":
+            cmd.extend(["--cookies-from-browser", browser_cookie])
 
     # Referer para plataformas com restrição de domínio / embed
     if platform == "Vimeo":
@@ -243,6 +248,130 @@ def build_ytdlp_command(
 
     cmd.append(clean_url)
     return cmd
+
+
+def run_download(
+    url: str,
+    output_format: str,
+    quality: str = "best",
+    custom_name: str | None = None,
+    on_progress: Callable[[ProgressInfo], None] | None = None,
+    save_dir: str | None = None,
+    session: DownloadSession | None = None,
+) -> str:
+    # Tentativas com fallbacks automáticos
+    disable_cookies_fallback = False
+    for attempt_index in range(1, 4):
+        fallback_yt = attempt_index == 2
+        cmd = build_ytdlp_command(
+            url=url,
+            output_format=output_format,
+            quality=quality,
+            custom_name=custom_name,
+            fallback_youtube_client=fallback_yt,
+            save_dir=save_dir,
+            disable_browser_cookies=disable_cookies_fallback,
+        )
+
+        last_recorded_path: str | None = None
+        creationflags = 0
+        startupinfo = None
+        if os.name == "nt":
+            creationflags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
+            startupinfo = subprocess.STARTUPINFO()
+            startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+            startupinfo.wShowWindow = subprocess.SW_HIDE
+
+        process = subprocess.Popen(
+            cmd,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            shell=False,
+            startupinfo=startupinfo,
+            creationflags=creationflags,
+        )
+
+        if session is not None:
+            session.process = process
+
+        output_lines: list[str] = []
+        while True:
+            if session is not None and session.cancel_requested:
+                session._kill_process()
+                raise DownloadError("Download cancelado pelo usuário.")
+            if session is not None and session.pause_requested:
+                session._kill_process()
+                raise DownloadError("Download pausado pelo usuário.")
+
+            if process.stdout is None:
+                break
+            line = process.stdout.readline()
+            if not line and process.poll() is not None:
+                break
+            if line:
+                line = line.strip()
+                if line:
+                    output_lines.append(line)
+                    if os.path.isabs(line) and os.path.exists(line):
+                        last_recorded_path = line
+                    elif "[download] Destination:" in line:
+                        candidate = line.split("[download] Destination:", 1)[1].strip()
+                        if os.path.exists(candidate):
+                            last_recorded_path = candidate
+                    elif "[Merger] Merging formats into" in line:
+                        candidate = line.split("Merging formats into", 1)[1].strip().strip('"\'')
+                        if os.path.exists(candidate):
+                            last_recorded_path = candidate
+                    elif "[ExtractAudio] Destination:" in line:
+                        candidate = line.split("[ExtractAudio] Destination:", 1)[1].strip()
+                        if os.path.exists(candidate):
+                            last_recorded_path = candidate
+
+                    if on_progress is not None:
+                        prog_info = parse_progress_line(line)
+                        on_progress(prog_info)
+
+        returncode = process.wait()
+        if returncode == 0:
+            if last_recorded_path and os.path.exists(last_recorded_path):
+                return last_recorded_path
+            
+            resolved = _resolve_downloaded_file(output_format, save_dir)
+            if resolved:
+                return resolved
+            raise DownloadError("O download foi concluído, mas o arquivo final não pôde ser localizado.")
+
+        recent_output = "\n".join(output_lines[-10:])
+        
+        # Se falhou por banco de cookies bloqueado pelo navegador aberto, tenta novamente sem cookies
+        if "Could not copy" in recent_output and "cookie database" in recent_output:
+            if not disable_cookies_fallback:
+                disable_cookies_fallback = True
+                continue
+
+        if "The page needs to be reloaded" in recent_output or "player_client" in recent_output.lower():
+            if attempt_index == 1:
+                continue
+
+        if "only works when logged-in" in recent_output.lower() or "empty media response" in recent_output.lower() or "requires authentication" in recent_output.lower():
+            raise DownloadError(
+                "Este conteúdo exige login/autenticação.\n\n"
+                "• Se você usa o Chrome, feche suas janelas antes de iniciar para liberar os cookies, ou\n"
+                "• Selecione outro navegador (Edge/Firefox) ou importe um 'cookies.txt' em Configurações."
+            )
+
+        if "UNSUPPORTED_URL" in recent_output or "unable to download webpage" in recent_output.lower():
+            raise DownloadError("Não foi possível acessar o link. Verifique se a URL está correta e se o vídeo está disponível.")
+        if "ffmpeg" in recent_output.lower() and "not found" in recent_output.lower():
+            raise DownloadError("O FFmpeg não foi encontrado. Instale-o para converter e mesclar vídeos/áudios.")
+        raise DownloadError(f"Erro ao baixar o conteúdo:\n\n{recent_output}")
+
+    raise DownloadError("Não foi possível concluir o download após tentar métodos alternativos.")
+
 
 
 

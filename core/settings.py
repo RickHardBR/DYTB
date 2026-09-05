@@ -124,3 +124,21 @@ def set_browser_cookies(browser: str) -> None:
     save_settings(settings)
 
 
+def get_cookies_file() -> str | None:
+    """Retorna o caminho de um arquivo cookies.txt se configurado ou se existir cookies.txt na raiz."""
+    configured = load_settings().get("cookies_file")
+    if configured and os.path.exists(configured):
+        return configured
+    local_cookie = Path("cookies.txt")
+    if local_cookie.exists():
+        return str(local_cookie.resolve())
+    return None
+
+
+def set_cookies_file(file_path: str | None) -> None:
+    settings = load_settings()
+    settings["cookies_file"] = file_path or ""
+    save_settings(settings)
+
+
+
