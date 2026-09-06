@@ -273,6 +273,24 @@ DYTB/
 
 ---
 
+### 14. Versão 1.2.0 - Sniffer CDP Global com Suporte a Iframes, Painel Interativo e Fallback de Cookies
+
+- **Lançamento Oficial da Versão v1.2.0**:
+  - Atualização da versão para `v1.2.0` em toda a interface (`ui/main_window.py`, `ui/about_dialog.py`), instalador (`installer.iss`), `README.md` e histórico.
+- **Sniffer CDP Global com Anexo Automático de Iframes (`core/sniffer_manager.py`)**:
+  - **Suporte Total a Iframes EAD**: Configurado o Chrome DevTools Protocol (CDP) com `Target.setAutoAttach(autoAttach=True, waitForDebuggerOnStart=False, flatten=True)`. Isso permite capturar 100% dos manifestos de streaming emitidos por players embutidos em iframes isolados (como `content-player.hotmart.com`, Panda Video, Vimeo Embeds, etc.).
+  - **Injeção de Hook JS Universal**: O sniffer injeta automaticamente (`Page.addScriptToEvaluateOnNewDocument`) scripts que monitoram chamadas `fetch`, `XMLHttpRequest` e tags `<video>` em todos os frames e sub-alvos, transmitindo os streams detectados via `Runtime.consoleAPICalled` para a aplicação.
+  - **Perfil de Sessão Persistente**: Dados de login permanecem salvos em `%APPDATA%\DYTB\sniffer_browser_data`, garantindo que o usuário não precise relogar a cada abertura.
+- **Painel Interativo de Controle (`ui/sniffer_dialog.py`)**:
+  - Nova interface dedicada para o Sniffer EAD contendo indicador de status em tempo real (🟢 Conectado / 🔴 Fechado), campo para URL da aula, botão de iniciar/parar navegador, guia passo a passo e lista dinâmica de transmissões capturadas com botão de download no DYTB e cópia de link com 1 clique.
+- **Resiliência e Fallback Automático de Cookies (`core/downloader.py`)**:
+  - Eliminado o erro de bloqueio de banco SQLite do Chrome (`Could not copy Chrome cookie database`) para links diretos de streaming (.m3u8, .mpd) que já possuem tokens assinados na URL.
+  - Implementado sistema de auto-recuperação e retry sem cookies caso ocorra qualquer bloqueio de banco de cookies do navegador em segundo plano.
+- **Bateria de Testes Unitários Automatizados**:
+  - Expandida para **17 testes unitários** em `test_app.py`, cobrindo validação de streams do sniffer, injeção de cookies e fallback automático. 100% de sucesso.
+
+---
+
 ## 🚀 Como Recompilar o Projeto
 
 Para gerar novamente as versões portátil e instalador após qualquer alteração:

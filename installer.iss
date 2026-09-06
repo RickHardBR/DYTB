@@ -1,6 +1,6 @@
 ; Script de instalador Inno Setup para DYTB Downloader
 #define MyAppName "DYTB Downloader"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.2.0"
 #define MyAppPublisher "RickHardDev"
 #define MyAppURL "https://www.instagram.com/rick.hard.dev/"
 #define MyAppExeName "DYTB.exe"

@@ -167,11 +167,9 @@ def format_friendly_error(raw_error: str, platform: str = "") -> tuple[str, str,
         guide = (
             f"A plataforma ({plat_name}) entrega os vídeos das aulas através de streams fragmentados (.m3u8) em vez de links diretos de página.\n\n"
             "Como baixar essa aula no DYTB:\n"
-            "1. Na página da aula no seu navegador, pressione F12 (Ferramentas do Desenvolvedor).\n"
-            "2. Clique na aba 'Rede' (Network) e digite 'm3u8' no campo de filtro.\n"
-            "3. Dê Play no vídeo (ou avance alguns segundos).\n"
-            "4. Clique com o botão direito no link que aparecer (ex: master.m3u8) e selecione 'Copiar link'.\n"
-            "5. Cole o link no DYTB e clique em Baixar (o DYTB baixa e junta todos os fragmentos em 1080p Full HD automaticamente!)."
+            "1. Abra a aba '🌐 Sniffer EAD' no menu superior do DYTB.\n"
+            "2. Clique em 'Iniciar Navegador Sniffer', faça login na plataforma e dê Play na aula.\n"
+            "3. O vídeo será capturado instantaneamente pelo Sniffer e baixado em 1080p Full HD pelo DYTB!"
         )
         return title, summary, guide
 
@@ -286,7 +284,10 @@ def build_ytdlp_command(
     elif not disable_browser_cookies:
         browser_cookie = get_browser_cookies()
         if browser_cookie and browser_cookie != "none":
-            cmd.extend(["--cookies-from-browser", browser_cookie])
+            # Streams HLS diretos (.m3u8, .mpd) ou com tokens na URL não devem travar com o banco SQLite do Chrome aberto
+            is_signed_stream = any(k in clean_url.lower() for k in [".m3u8", ".mpd", "token=", "signature=", "expires=", "content-player.hotmart.com"])
+            if not is_signed_stream:
+                cmd.extend(["--cookies-from-browser", browser_cookie])
 
     # Referer para plataformas com restrição de domínio / embed
     if platform == "Vimeo":
@@ -499,7 +500,14 @@ def run_download(
         last_raw_error = recent_output
 
         # Se falhou por banco de cookies bloqueado pelo navegador aberto, tenta novamente sem cookies
-        if ("Could not copy" in recent_output and "cookie database" in recent_output) or ("only works when logged-in" in recent_output.lower() and detected_plat == "Vimeo"):
+        err_l = recent_output.lower()
+        if (
+            ("could not copy" in err_l and "cookie" in err_l)
+            or ("cookie database" in err_l)
+            or ("permission denied" in err_l and "cookie" in err_l)
+            or ("sqlite3.operationalerror" in err_l)
+            or ("only works when logged-in" in err_l and detected_plat == "Vimeo")
+        ):
             if not disable_cookies_fallback:
                 disable_cookies_fallback = True
                 continue

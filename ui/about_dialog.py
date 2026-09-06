@@ -41,7 +41,7 @@ class AboutDialog(ctk.CTkToplevel):
 
         version = ctk.CTkLabel(
             frame,
-            text="Versão 1.1.0",
+            text="Versão 1.2.0",
             font=ctk.CTkFont(size=12),
             text_color="#999999",
         )

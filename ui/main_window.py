@@ -38,6 +38,7 @@ from ui.about_dialog import AboutDialog
 from ui.dialogs import CustomNameDialog, ErrorDetailsDialog, ErrorDialog, InstallRequiredDialog
 from ui.history_window import HistoryWindow
 from ui.settings_window import SettingsWindow
+from ui.sniffer_dialog import SnifferDialog
 
 import sys
 from PIL import Image
@@ -192,7 +193,7 @@ class MainWindow:
         # Versão à Direita
         version_lbl = ctk.CTkLabel(
             header_frame,
-            text="DYTB Downloader - v1.1.0",
+            text="DYTB Downloader - v1.2.0",
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color="#64748b",
         )
@@ -871,7 +872,12 @@ class MainWindow:
     def _open_sniffer(self, target_url: str = ""):
         current_input = target_url or self.url_entry.get().strip()
         default_url = current_input if current_input.startswith("http") else "https://hotmart.com/"
-        self.sniffer_manager.launch(default_url)
+        SnifferDialog(
+            self.parent,
+            sniffer_manager=self.sniffer_manager,
+            on_download_stream=self._handle_captured_stream,
+            initial_url=default_url,
+        )
 
     def _on_sniffer_stream_captured(self, stream_url: str, title: str):
         self.parent.after(0, lambda: self._handle_captured_stream(stream_url, title))

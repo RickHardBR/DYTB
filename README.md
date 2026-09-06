@@ -9,7 +9,7 @@
 [![Python](https://img.shields.io/badge/Python-3.10%2B-blue.svg)](https://www.python.org/)
 [![UI](https://img.shields.io/badge/Interface-CustomTkinter-0284c7.svg)](https://github.com/TomSchimansky/CustomTkinter)
 [![Platform](https://img.shields.io/badge/Plataforma-Windows-0078d4.svg)](https://www.microsoft.com/windows)
-[![Release](https://img.shields.io/badge/Versão-1.1.0-emerald.svg)](https://github.com/RickHardBR/DYTB/releases)
+[![Release](https://img.shields.io/badge/Versão-1.2.0-emerald.svg)](https://github.com/RickHardBR/DYTB/releases)
 [![License](https://img.shields.io/badge/Licença-MIT-orange.svg)](LICENSE)
 
 </div>

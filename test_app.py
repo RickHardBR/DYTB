@@ -233,7 +233,7 @@ class TestDYTB(unittest.TestCase):
         ead_unsupported = "ERROR: Unsupported URL: https://hotmart.com/pt-br/club/curso/products/1/content/E4zWklkQel"
         t4, s4, g4 = format_friendly_error(ead_unsupported, "Hotmart / EAD")
         self.assertEqual(t4, "Página de Curso EAD / Stream HLS")
-        self.assertIn("F12", g4)
+        self.assertIn("Sniffer EAD", g4)
 
     def test_hotmart_json_and_stream_extraction(self):
         hotmart_json = '{"media":{"bandwidth":"1293.95 Kbps","mediaCode":"GZWWKJWEZA","user":"9M7GVxwewK"}}'
@@ -247,6 +247,15 @@ class TestDYTB(unittest.TestCase):
         self.assertEqual(len(urls2), 1)
         self.assertTrue(urls2[0].endswith(".m3u8?token=123"))
         self.assertEqual(detect_platform(urls2[0]), "HLS Stream (.m3u8)")
+
+    def test_sniffer_media_detection(self):
+        from core.sniffer_manager import SnifferManager
+        sm = SnifferManager()
+        self.assertTrue(sm._is_media_stream("https://content-player.hotmart.com/api/v1/content/media/123/master.m3u8?token=xyz"))
+        self.assertTrue(sm._is_media_stream("https://b-vz-123.pandavideo.com.br/playlist.m3u8"))
+        self.assertTrue(sm._is_media_stream("https://cdn.example.com/live/manifest.mpd"))
+        self.assertFalse(sm._is_media_stream("https://hotmart.com/static/bundle.js"))
+        self.assertFalse(sm._is_media_stream("https://hotmart.com/logo.png"))
 
 
 if __name__ == "__main__":
